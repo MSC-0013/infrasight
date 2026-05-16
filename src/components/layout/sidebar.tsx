@@ -6,7 +6,8 @@ import {
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const NAV: readonly NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/events", label: "Event Explorer", icon: Search },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },

@@ -9,27 +9,244 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkersRouteImport } from './routes/workers'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as QueuesRouteImport } from './routes/queues'
+import { Route as OrganizationsRouteImport } from './routes/organizations'
+import { Route as MlInsightsRouteImport } from './routes/ml-insights'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as ApiRouteImport } from './routes/api'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AlertsRouteImport } from './routes/alerts'
+import { Route as IndexRouteImport } from './routes/index'
 
-export interface FileRoutesByFullPath {}
-export interface FileRoutesByTo {}
+const WorkersRoute = WorkersRouteImport.update({
+  id: '/workers',
+  path: '/workers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueuesRoute = QueuesRouteImport.update({
+  id: '/queues',
+  path: '/queues',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizationsRoute = OrganizationsRouteImport.update({
+  id: '/organizations',
+  path: '/organizations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MlInsightsRoute = MlInsightsRouteImport.update({
+  id: '/ml-insights',
+  path: '/ml-insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRoute = ApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsRoute = AlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/analytics': typeof AnalyticsRoute
+  '/api': typeof ApiRoute
+  '/events': typeof EventsRoute
+  '/ml-insights': typeof MlInsightsRoute
+  '/organizations': typeof OrganizationsRoute
+  '/queues': typeof QueuesRoute
+  '/settings': typeof SettingsRoute
+  '/workers': typeof WorkersRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/analytics': typeof AnalyticsRoute
+  '/api': typeof ApiRoute
+  '/events': typeof EventsRoute
+  '/ml-insights': typeof MlInsightsRoute
+  '/organizations': typeof OrganizationsRoute
+  '/queues': typeof QueuesRoute
+  '/settings': typeof SettingsRoute
+  '/workers': typeof WorkersRoute
+}
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/alerts': typeof AlertsRoute
+  '/analytics': typeof AnalyticsRoute
+  '/api': typeof ApiRoute
+  '/events': typeof EventsRoute
+  '/ml-insights': typeof MlInsightsRoute
+  '/organizations': typeof OrganizationsRoute
+  '/queues': typeof QueuesRoute
+  '/settings': typeof SettingsRoute
+  '/workers': typeof WorkersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: never
+  fullPaths:
+    | '/'
+    | '/alerts'
+    | '/analytics'
+    | '/api'
+    | '/events'
+    | '/ml-insights'
+    | '/organizations'
+    | '/queues'
+    | '/settings'
+    | '/workers'
   fileRoutesByTo: FileRoutesByTo
-  to: never
-  id: '__root__'
+  to:
+    | '/'
+    | '/alerts'
+    | '/analytics'
+    | '/api'
+    | '/events'
+    | '/ml-insights'
+    | '/organizations'
+    | '/queues'
+    | '/settings'
+    | '/workers'
+  id:
+    | '__root__'
+    | '/'
+    | '/alerts'
+    | '/analytics'
+    | '/api'
+    | '/events'
+    | '/ml-insights'
+    | '/organizations'
+    | '/queues'
+    | '/settings'
+    | '/workers'
   fileRoutesById: FileRoutesById
 }
-export interface RootRouteChildren {}
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AlertsRoute: typeof AlertsRoute
+  AnalyticsRoute: typeof AnalyticsRoute
+  ApiRoute: typeof ApiRoute
+  EventsRoute: typeof EventsRoute
+  MlInsightsRoute: typeof MlInsightsRoute
+  OrganizationsRoute: typeof OrganizationsRoute
+  QueuesRoute: typeof QueuesRoute
+  SettingsRoute: typeof SettingsRoute
+  WorkersRoute: typeof WorkersRoute
 }
 
-const rootRouteChildren: RootRouteChildren = {}
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/workers': {
+      id: '/workers'
+      path: '/workers'
+      fullPath: '/workers'
+      preLoaderRoute: typeof WorkersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/queues': {
+      id: '/queues'
+      path: '/queues'
+      fullPath: '/queues'
+      preLoaderRoute: typeof QueuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organizations': {
+      id: '/organizations'
+      path: '/organizations'
+      fullPath: '/organizations'
+      preLoaderRoute: typeof OrganizationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ml-insights': {
+      id: '/ml-insights'
+      path: '/ml-insights'
+      fullPath: '/ml-insights'
+      preLoaderRoute: typeof MlInsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api': {
+      id: '/api'
+      path: '/api'
+      fullPath: '/api'
+      preLoaderRoute: typeof ApiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts': {
+      id: '/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+  }
+}
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AlertsRoute: AlertsRoute,
+  AnalyticsRoute: AnalyticsRoute,
+  ApiRoute: ApiRoute,
+  EventsRoute: EventsRoute,
+  MlInsightsRoute: MlInsightsRoute,
+  OrganizationsRoute: OrganizationsRoute,
+  QueuesRoute: QueuesRoute,
+  SettingsRoute: SettingsRoute,
+  WorkersRoute: WorkersRoute,
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()

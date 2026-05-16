@@ -54,7 +54,7 @@ export function Sidebar() {
           return (
             <Link
               key={item.to}
-              to={item.to}
+              to={item.to as never}
               className={cn(
                 "group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
                 active

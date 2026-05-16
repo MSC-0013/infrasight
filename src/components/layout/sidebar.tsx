@@ -18,7 +18,7 @@ const NAV: readonly NavItem[] = [
   { to: "/api", label: "API Monitoring", icon: Network },
   { to: "/organizations", label: "Organizations", icon: Building2 },
   { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();

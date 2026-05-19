@@ -45,8 +45,13 @@ export function CommandPalette() {
         setOpen((o) => !o);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pulse:open-palette", onOpen as EventListener);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pulse:open-palette", onOpen as EventListener);
+    };
   }, []);
 
   const go = (to: string) => {

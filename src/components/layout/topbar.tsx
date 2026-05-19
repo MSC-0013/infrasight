@@ -24,10 +24,7 @@ export function Topbar() {
   return (
     <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <button
-        onClick={() => {
-          const evt = new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true });
-          window.dispatchEvent(evt);
-        }}
+        onClick={() => window.dispatchEvent(new CustomEvent("pulse:open-palette"))}
         className="group relative flex h-8 max-w-md flex-1 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <Search className="h-3.5 w-3.5" />

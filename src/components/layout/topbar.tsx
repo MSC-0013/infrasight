@@ -1,10 +1,10 @@
-import { Search, Bell, ChevronDown, Sun, Moon, Check } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search, ChevronDown, Sun, Moon, Check } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RealtimeIndicator } from "@/components/realtime-indicator";
+import { NotificationCenter } from "@/components/notification-center";
 import { useUIStore } from "@/store/ui-store";
 import { generateOrganizations } from "@/lib/mock-data";
 import { useMemo, useState, useEffect } from "react";
@@ -23,13 +23,14 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="relative max-w-md flex-1">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search events, queues, workers…  ⌘K"
-          className="h-8 border-border bg-card pl-8 text-xs font-mono placeholder:text-muted-foreground/70"
-        />
-      </div>
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent("pulse:open-palette"))}
+        className="group relative flex h-8 max-w-md flex-1 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <Search className="h-3.5 w-3.5" />
+        <span className="font-mono">Search events, traces, services…</span>
+        <span className="ml-auto rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">⌘K</span>
+      </button>
 
       <div className="ml-auto flex items-center gap-2">
         <RealtimeIndicator />
@@ -66,13 +67,7 @@ export function Topbar() {
           {dark ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
         </button>
 
-        <button
-          className="relative flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="h-3.5 w-3.5" />
-          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" />
-        </button>
+        <NotificationCenter />
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1 hover:bg-accent">

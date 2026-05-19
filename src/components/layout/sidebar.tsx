@@ -1,23 +1,58 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Search, BarChart3, Layers, Cpu, Bell,
-  Sparkles, Network, Building2, Settings, ChevronsLeft, ChevronsRight, Activity,
+  LayoutDashboard, Search, BarChart3, Layers, Cpu, Bell, Sparkles,
+  Network, Building2, Settings, ChevronsLeft, ChevronsRight, Activity,
+  Workflow, FileText, AlertOctagon, GitBranch, ShieldCheck, Boxes,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
-const NAV: readonly NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/events", label: "Event Explorer", icon: Search },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/queues", label: "Queue Monitoring", icon: Layers },
-  { to: "/workers", label: "Worker Monitoring", icon: Cpu },
-  { to: "/alerts", label: "Alerts", icon: Bell },
-  { to: "/ml-insights", label: "ML Insights", icon: Sparkles },
-  { to: "/api", label: "API Monitoring", icon: Network },
-  { to: "/organizations", label: "Organizations", icon: Building2 },
-  { to: "/settings", label: "Settings", icon: Settings },
+type NavSection = { label: string; items: readonly NavItem[] };
+
+const SECTIONS: readonly NavSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/topology", label: "Topology", icon: Network },
+      { to: "/services", label: "Service Health", icon: Activity },
+    ],
+  },
+  {
+    label: "Observability",
+    items: [
+      { to: "/events", label: "Events", icon: Search },
+      { to: "/traces", label: "Traces", icon: Workflow },
+      { to: "/logs", label: "Logs", icon: FileText },
+      { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/api", label: "API Monitoring", icon: Boxes },
+    ],
+  },
+  {
+    label: "Infrastructure",
+    items: [
+      { to: "/queues", label: "Queues", icon: Layers },
+      { to: "/workers", label: "Workers", icon: Cpu },
+      { to: "/deployments", label: "Deployments", icon: GitBranch },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { to: "/incidents", label: "Incidents", icon: AlertOctagon },
+      { to: "/alerts", label: "Alerts", icon: Bell },
+      { to: "/mlops", label: "MLOps", icon: Sparkles },
+      { to: "/audit", label: "Audit log", icon: ShieldCheck },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { to: "/organizations", label: "Organizations", icon: Building2 },
+      { to: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -38,43 +73,48 @@ export function Sidebar() {
           </div>
           {!sidebarCollapsed && <span className="truncate text-sm font-semibold tracking-tight">Pulse</span>}
         </Link>
-        <button
-          onClick={toggleSidebar}
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Toggle sidebar"
-        >
+        <button onClick={toggleSidebar} className="text-muted-foreground hover:text-foreground" aria-label="Toggle sidebar">
           {sidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
         </button>
       </div>
 
-      <nav className="flex flex-col gap-0.5 px-2 py-2">
-        {NAV.map((item) => {
-          const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to as never}
-              className={cn(
-                "group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-              )}
-              title={sidebarCollapsed ? item.label : undefined}
-            >
-              <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} strokeWidth={2} />
-              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-              {active && !sidebarCollapsed && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
-            </Link>
-          );
-        })}
+      <nav className="thin-scrollbar flex h-[calc(100vh-3rem)] flex-col gap-3 overflow-y-auto px-2 py-3 pb-20">
+        {SECTIONS.map((section) => (
+          <div key={section.label} className="flex flex-col gap-0.5">
+            {!sidebarCollapsed && (
+              <div className="px-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                {section.label}
+              </div>
+            )}
+            {section.items.map((item) => {
+              const active = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to as never}
+                  className={cn(
+                    "group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  )}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} strokeWidth={2} />
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  {active && !sidebarCollapsed && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {!sidebarCollapsed && (
-        <div className="absolute inset-x-0 bottom-0 border-t border-sidebar-border p-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 border-t border-sidebar-border bg-sidebar p-3">
           <div className="rounded-md border border-sidebar-border bg-sidebar-accent/40 p-2.5">
             <p className="text-[11px] font-medium text-muted-foreground">Cluster region</p>
             <p className="mt-0.5 font-mono text-xs">us-east-1 · prod</p>

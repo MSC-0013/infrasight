@@ -10,24 +10,48 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkersRouteImport } from './routes/workers'
+import { Route as TracesRouteImport } from './routes/traces'
+import { Route as TopologyRouteImport } from './routes/topology'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as QueuesRouteImport } from './routes/queues'
 import { Route as OrganizationsRouteImport } from './routes/organizations'
+import { Route as MlopsRouteImport } from './routes/mlops'
 import { Route as MlInsightsRouteImport } from './routes/ml-insights'
+import { Route as LogsRouteImport } from './routes/logs'
+import { Route as IncidentsRouteImport } from './routes/incidents'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as DeploymentsRouteImport } from './routes/deployments'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as ApiRouteImport } from './routes/api'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TracesTraceIdRouteImport } from './routes/traces.$traceId'
 
 const WorkersRoute = WorkersRouteImport.update({
   id: '/workers',
   path: '/workers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TracesRoute = TracesRouteImport.update({
+  id: '/traces',
+  path: '/traces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TopologyRoute = TopologyRouteImport.update({
+  id: '/topology',
+  path: '/topology',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QueuesRoute = QueuesRouteImport.update({
@@ -40,14 +64,39 @@ const OrganizationsRoute = OrganizationsRouteImport.update({
   path: '/organizations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MlopsRoute = MlopsRouteImport.update({
+  id: '/mlops',
+  path: '/mlops',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MlInsightsRoute = MlInsightsRouteImport.update({
   id: '/ml-insights',
   path: '/ml-insights',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncidentsRoute = IncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeploymentsRoute = DeploymentsRouteImport.update({
+  id: '/deployments',
+  path: '/deployments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRoute = ApiRouteImport.update({
@@ -70,30 +119,53 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TracesTraceIdRoute = TracesTraceIdRouteImport.update({
+  id: '/$traceId',
+  path: '/$traceId',
+  getParentRoute: () => TracesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
+  '/audit': typeof AuditRoute
+  '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
+  '/incidents': typeof IncidentsRoute
+  '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
+  '/mlops': typeof MlopsRoute
   '/organizations': typeof OrganizationsRoute
   '/queues': typeof QueuesRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/topology': typeof TopologyRoute
+  '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
+  '/audit': typeof AuditRoute
+  '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
+  '/incidents': typeof IncidentsRoute
+  '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
+  '/mlops': typeof MlopsRoute
   '/organizations': typeof OrganizationsRoute
   '/queues': typeof QueuesRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/topology': typeof TopologyRoute
+  '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -101,12 +173,21 @@ export interface FileRoutesById {
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
+  '/audit': typeof AuditRoute
+  '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
+  '/incidents': typeof IncidentsRoute
+  '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
+  '/mlops': typeof MlopsRoute
   '/organizations': typeof OrganizationsRoute
   '/queues': typeof QueuesRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/topology': typeof TopologyRoute
+  '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -115,36 +196,63 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/analytics'
     | '/api'
+    | '/audit'
+    | '/deployments'
     | '/events'
+    | '/incidents'
+    | '/logs'
     | '/ml-insights'
+    | '/mlops'
     | '/organizations'
     | '/queues'
+    | '/services'
     | '/settings'
+    | '/topology'
+    | '/traces'
     | '/workers'
+    | '/traces/$traceId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/alerts'
     | '/analytics'
     | '/api'
+    | '/audit'
+    | '/deployments'
     | '/events'
+    | '/incidents'
+    | '/logs'
     | '/ml-insights'
+    | '/mlops'
     | '/organizations'
     | '/queues'
+    | '/services'
     | '/settings'
+    | '/topology'
+    | '/traces'
     | '/workers'
+    | '/traces/$traceId'
   id:
     | '__root__'
     | '/'
     | '/alerts'
     | '/analytics'
     | '/api'
+    | '/audit'
+    | '/deployments'
     | '/events'
+    | '/incidents'
+    | '/logs'
     | '/ml-insights'
+    | '/mlops'
     | '/organizations'
     | '/queues'
+    | '/services'
     | '/settings'
+    | '/topology'
+    | '/traces'
     | '/workers'
+    | '/traces/$traceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -152,11 +260,19 @@ export interface RootRouteChildren {
   AlertsRoute: typeof AlertsRoute
   AnalyticsRoute: typeof AnalyticsRoute
   ApiRoute: typeof ApiRoute
+  AuditRoute: typeof AuditRoute
+  DeploymentsRoute: typeof DeploymentsRoute
   EventsRoute: typeof EventsRoute
+  IncidentsRoute: typeof IncidentsRoute
+  LogsRoute: typeof LogsRoute
   MlInsightsRoute: typeof MlInsightsRoute
+  MlopsRoute: typeof MlopsRoute
   OrganizationsRoute: typeof OrganizationsRoute
   QueuesRoute: typeof QueuesRoute
+  ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
+  TopologyRoute: typeof TopologyRoute
+  TracesRoute: typeof TracesRouteWithChildren
   WorkersRoute: typeof WorkersRoute
 }
 
@@ -169,11 +285,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/traces': {
+      id: '/traces'
+      path: '/traces'
+      fullPath: '/traces'
+      preLoaderRoute: typeof TracesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/topology': {
+      id: '/topology'
+      path: '/topology'
+      fullPath: '/topology'
+      preLoaderRoute: typeof TopologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/queues': {
@@ -190,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mlops': {
+      id: '/mlops'
+      path: '/mlops'
+      fullPath: '/mlops'
+      preLoaderRoute: typeof MlopsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ml-insights': {
       id: '/ml-insights'
       path: '/ml-insights'
@@ -197,11 +341,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MlInsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incidents': {
+      id: '/incidents'
+      path: '/incidents'
+      fullPath: '/incidents'
+      preLoaderRoute: typeof IncidentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events': {
       id: '/events'
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deployments': {
+      id: '/deployments'
+      path: '/deployments'
+      fullPath: '/deployments'
+      preLoaderRoute: typeof DeploymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api': {
@@ -232,19 +404,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/traces/$traceId': {
+      id: '/traces/$traceId'
+      path: '/$traceId'
+      fullPath: '/traces/$traceId'
+      preLoaderRoute: typeof TracesTraceIdRouteImport
+      parentRoute: typeof TracesRoute
+    }
   }
 }
+
+interface TracesRouteChildren {
+  TracesTraceIdRoute: typeof TracesTraceIdRoute
+}
+
+const TracesRouteChildren: TracesRouteChildren = {
+  TracesTraceIdRoute: TracesTraceIdRoute,
+}
+
+const TracesRouteWithChildren =
+  TracesRoute._addFileChildren(TracesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
   AnalyticsRoute: AnalyticsRoute,
   ApiRoute: ApiRoute,
+  AuditRoute: AuditRoute,
+  DeploymentsRoute: DeploymentsRoute,
   EventsRoute: EventsRoute,
+  IncidentsRoute: IncidentsRoute,
+  LogsRoute: LogsRoute,
   MlInsightsRoute: MlInsightsRoute,
+  MlopsRoute: MlopsRoute,
   OrganizationsRoute: OrganizationsRoute,
   QueuesRoute: QueuesRoute,
+  ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
+  TopologyRoute: TopologyRoute,
+  TracesRoute: TracesRouteWithChildren,
   WorkersRoute: WorkersRoute,
 }
 export const routeTree = rootRouteImport

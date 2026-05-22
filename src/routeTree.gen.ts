@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkersRouteImport } from './routes/workers'
 import { Route as TracesRouteImport } from './routes/traces'
 import { Route as TopologyRouteImport } from './routes/topology'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as QueuesRouteImport } from './routes/queues'
@@ -19,7 +20,9 @@ import { Route as OrganizationsRouteImport } from './routes/organizations'
 import { Route as MlopsRouteImport } from './routes/mlops'
 import { Route as MlInsightsRouteImport } from './routes/ml-insights'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IncidentsRouteImport } from './routes/incidents'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DeploymentsRouteImport } from './routes/deployments'
 import { Route as AuditRouteImport } from './routes/audit'
@@ -28,6 +31,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TracesTraceIdRouteImport } from './routes/traces.$traceId'
+import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents.$incidentId'
 
 const WorkersRoute = WorkersRouteImport.update({
   id: '/workers',
@@ -42,6 +46,11 @@ const TracesRoute = TracesRouteImport.update({
 const TopologyRoute = TopologyRouteImport.update({
   id: '/topology',
   path: '/topology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -79,9 +88,19 @@ const LogsRoute = LogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IncidentsRoute = IncidentsRouteImport.update({
   id: '/incidents',
   path: '/incidents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -124,6 +143,11 @@ const TracesTraceIdRoute = TracesTraceIdRouteImport.update({
   path: '/$traceId',
   getParentRoute: () => TracesRoute,
 } as any)
+const IncidentsIncidentIdRoute = IncidentsIncidentIdRouteImport.update({
+  id: '/$incidentId',
+  path: '/$incidentId',
+  getParentRoute: () => IncidentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -133,7 +157,9 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuditRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
-  '/incidents': typeof IncidentsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
   '/mlops': typeof MlopsRoute
@@ -141,9 +167,11 @@ export interface FileRoutesByFullPath {
   '/queues': typeof QueuesRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRoutesByTo {
@@ -154,7 +182,9 @@ export interface FileRoutesByTo {
   '/audit': typeof AuditRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
-  '/incidents': typeof IncidentsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
   '/mlops': typeof MlopsRoute
@@ -162,9 +192,11 @@ export interface FileRoutesByTo {
   '/queues': typeof QueuesRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRoutesById {
@@ -176,7 +208,9 @@ export interface FileRoutesById {
   '/audit': typeof AuditRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
-  '/incidents': typeof IncidentsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/ml-insights': typeof MlInsightsRoute
   '/mlops': typeof MlopsRoute
@@ -184,9 +218,11 @@ export interface FileRoutesById {
   '/queues': typeof QueuesRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
   '/workers': typeof WorkersRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
 }
 export interface FileRouteTypes {
@@ -199,7 +235,9 @@ export interface FileRouteTypes {
     | '/audit'
     | '/deployments'
     | '/events'
+    | '/forgot-password'
     | '/incidents'
+    | '/login'
     | '/logs'
     | '/ml-insights'
     | '/mlops'
@@ -207,9 +245,11 @@ export interface FileRouteTypes {
     | '/queues'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/topology'
     | '/traces'
     | '/workers'
+    | '/incidents/$incidentId'
     | '/traces/$traceId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -220,7 +260,9 @@ export interface FileRouteTypes {
     | '/audit'
     | '/deployments'
     | '/events'
+    | '/forgot-password'
     | '/incidents'
+    | '/login'
     | '/logs'
     | '/ml-insights'
     | '/mlops'
@@ -228,9 +270,11 @@ export interface FileRouteTypes {
     | '/queues'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/topology'
     | '/traces'
     | '/workers'
+    | '/incidents/$incidentId'
     | '/traces/$traceId'
   id:
     | '__root__'
@@ -241,7 +285,9 @@ export interface FileRouteTypes {
     | '/audit'
     | '/deployments'
     | '/events'
+    | '/forgot-password'
     | '/incidents'
+    | '/login'
     | '/logs'
     | '/ml-insights'
     | '/mlops'
@@ -249,9 +295,11 @@ export interface FileRouteTypes {
     | '/queues'
     | '/services'
     | '/settings'
+    | '/signup'
     | '/topology'
     | '/traces'
     | '/workers'
+    | '/incidents/$incidentId'
     | '/traces/$traceId'
   fileRoutesById: FileRoutesById
 }
@@ -263,7 +311,9 @@ export interface RootRouteChildren {
   AuditRoute: typeof AuditRoute
   DeploymentsRoute: typeof DeploymentsRoute
   EventsRoute: typeof EventsRoute
-  IncidentsRoute: typeof IncidentsRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  IncidentsRoute: typeof IncidentsRouteWithChildren
+  LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
   MlInsightsRoute: typeof MlInsightsRoute
   MlopsRoute: typeof MlopsRoute
@@ -271,6 +321,7 @@ export interface RootRouteChildren {
   QueuesRoute: typeof QueuesRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
+  SignupRoute: typeof SignupRoute
   TopologyRoute: typeof TopologyRoute
   TracesRoute: typeof TracesRouteWithChildren
   WorkersRoute: typeof WorkersRoute
@@ -297,6 +348,13 @@ declare module '@tanstack/react-router' {
       path: '/topology'
       fullPath: '/topology'
       preLoaderRoute: typeof TopologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -348,11 +406,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/incidents': {
       id: '/incidents'
       path: '/incidents'
       fullPath: '/incidents'
       preLoaderRoute: typeof IncidentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -411,8 +483,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TracesTraceIdRouteImport
       parentRoute: typeof TracesRoute
     }
+    '/incidents/$incidentId': {
+      id: '/incidents/$incidentId'
+      path: '/$incidentId'
+      fullPath: '/incidents/$incidentId'
+      preLoaderRoute: typeof IncidentsIncidentIdRouteImport
+      parentRoute: typeof IncidentsRoute
+    }
   }
 }
+
+interface IncidentsRouteChildren {
+  IncidentsIncidentIdRoute: typeof IncidentsIncidentIdRoute
+}
+
+const IncidentsRouteChildren: IncidentsRouteChildren = {
+  IncidentsIncidentIdRoute: IncidentsIncidentIdRoute,
+}
+
+const IncidentsRouteWithChildren = IncidentsRoute._addFileChildren(
+  IncidentsRouteChildren,
+)
 
 interface TracesRouteChildren {
   TracesTraceIdRoute: typeof TracesTraceIdRoute
@@ -433,7 +524,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuditRoute: AuditRoute,
   DeploymentsRoute: DeploymentsRoute,
   EventsRoute: EventsRoute,
-  IncidentsRoute: IncidentsRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  IncidentsRoute: IncidentsRouteWithChildren,
+  LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
   MlInsightsRoute: MlInsightsRoute,
   MlopsRoute: MlopsRoute,
@@ -441,6 +534,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueuesRoute: QueuesRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
+  SignupRoute: SignupRoute,
   TopologyRoute: TopologyRoute,
   TracesRoute: TracesRouteWithChildren,
   WorkersRoute: WorkersRoute,

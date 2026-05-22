@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { CommandPalette } from "@/components/command-palette";
+import { InspectorDrawer } from "@/components/inspector-drawer";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <CommandPalette />
+      <InspectorDrawer />
     </div>
   );
 }

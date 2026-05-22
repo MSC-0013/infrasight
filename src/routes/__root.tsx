@@ -1,10 +1,12 @@
-import { Outlet, createRootRoute, HeadContent, Scripts, Link } from "@tanstack/react-router";
+import { Outlet, createRootRoute, HeadContent, Scripts, Link, useRouterState } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/app-shell";
 import appCss from "../styles.css?url";
 
 const queryClient = new QueryClient();
+
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
 
 function NotFoundComponent() {
   return (
@@ -60,11 +62,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthRoute = AUTH_ROUTES.includes(pathname);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
-        <Outlet />
-      </AppShell>
+      {isAuthRoute ? <Outlet /> : <AppShell><Outlet /></AppShell>}
       <Toaster theme="dark" />
     </QueryClientProvider>
   );

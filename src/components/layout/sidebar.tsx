@@ -5,52 +5,53 @@ import {
   Workflow, FileText, AlertOctagon, GitBranch, ShieldCheck, Boxes,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; perm: string };
 type NavSection = { label: string; items: readonly NavItem[] };
 
 const SECTIONS: readonly NavSection[] = [
   {
     label: "Overview",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { to: "/topology", label: "Topology", icon: Network },
-      { to: "/services", label: "Service Health", icon: Activity },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, perm: "view:dashboard" },
+      { to: "/topology", label: "Topology", icon: Network, perm: "view:topology" },
+      { to: "/services", label: "Service Health", icon: Activity, perm: "view:services" },
     ],
   },
   {
     label: "Observability",
     items: [
-      { to: "/events", label: "Events", icon: Search },
-      { to: "/traces", label: "Traces", icon: Workflow },
-      { to: "/logs", label: "Logs", icon: FileText },
-      { to: "/analytics", label: "Analytics", icon: BarChart3 },
-      { to: "/api", label: "API Monitoring", icon: Boxes },
+      { to: "/events", label: "Events", icon: Search, perm: "view:events" },
+      { to: "/traces", label: "Traces", icon: Workflow, perm: "view:traces" },
+      { to: "/logs", label: "Logs", icon: FileText, perm: "view:logs" },
+      { to: "/analytics", label: "Analytics", icon: BarChart3, perm: "view:analytics" },
+      { to: "/api", label: "API Monitoring", icon: Boxes, perm: "view:api" },
     ],
   },
   {
     label: "Infrastructure",
     items: [
-      { to: "/queues", label: "Queues", icon: Layers },
-      { to: "/workers", label: "Workers", icon: Cpu },
-      { to: "/deployments", label: "Deployments", icon: GitBranch },
+      { to: "/queues", label: "Queues", icon: Layers, perm: "view:queues" },
+      { to: "/workers", label: "Workers", icon: Cpu, perm: "view:workers" },
+      { to: "/deployments", label: "Deployments", icon: GitBranch, perm: "view:deployments" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { to: "/incidents", label: "Incidents", icon: AlertOctagon },
-      { to: "/alerts", label: "Alerts", icon: Bell },
-      { to: "/mlops", label: "MLOps", icon: Sparkles },
-      { to: "/audit", label: "Audit log", icon: ShieldCheck },
+      { to: "/incidents", label: "Incidents", icon: AlertOctagon, perm: "view:incidents" },
+      { to: "/alerts", label: "Alerts", icon: Bell, perm: "view:alerts" },
+      { to: "/mlops", label: "MLOps", icon: Sparkles, perm: "view:mlops" },
+      { to: "/audit", label: "Audit log", icon: ShieldCheck, perm: "manage:org" },
     ],
   },
   {
     label: "Admin",
     items: [
-      { to: "/organizations", label: "Organizations", icon: Building2 },
-      { to: "/settings", label: "Settings", icon: Settings },
+      { to: "/organizations", label: "Organizations", icon: Building2, perm: "manage:org" },
+      { to: "/settings", label: "Settings", icon: Settings, perm: "manage:settings" },
     ],
   },
 ];
@@ -58,6 +59,7 @@ const SECTIONS: readonly NavSection[] = [
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const can = useAuthStore((s) => s.can);
 
   return (
     <aside
@@ -79,38 +81,42 @@ export function Sidebar() {
       </div>
 
       <nav className="thin-scrollbar flex h-[calc(100vh-3rem)] flex-col gap-3 overflow-y-auto px-2 py-3 pb-20">
-        {SECTIONS.map((section) => (
-          <div key={section.label} className="flex flex-col gap-0.5">
-            {!sidebarCollapsed && (
-              <div className="px-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
-                {section.label}
-              </div>
-            )}
-            {section.items.map((item) => {
-              const active = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to as never}
-                  className={cn(
-                    "group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                  )}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} strokeWidth={2} />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                  {active && !sidebarCollapsed && (
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {SECTIONS.map((section) => {
+          const visible = section.items.filter((i) => can(i.perm));
+          if (visible.length === 0) return null;
+          return (
+            <div key={section.label} className="flex flex-col gap-0.5">
+              {!sidebarCollapsed && (
+                <div className="px-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                  {section.label}
+                </div>
+              )}
+              {visible.map((item) => {
+                const active = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to as never}
+                    className={cn(
+                      "group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    )}
+                    title={sidebarCollapsed ? item.label : undefined}
+                  >
+                    <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} strokeWidth={2} />
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                    {active && !sidebarCollapsed && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       {!sidebarCollapsed && (

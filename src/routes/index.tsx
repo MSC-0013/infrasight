@@ -13,6 +13,11 @@ import { QueueCard } from "@/components/queue-card";
 import { WorkerCard } from "@/components/worker-card";
 import { JSONViewer } from "@/components/json-viewer";
 import { RoleDashboardHeader } from "@/components/role-dashboard-header";
+import { SuperAdminDashboard } from "@/components/dashboards/super-admin-dashboard";
+import { AdminDashboard } from "@/components/dashboards/admin-dashboard";
+import { SREDashboard } from "@/components/dashboards/sre-dashboard";
+import { DeveloperDashboard } from "@/components/dashboards/developer-dashboard";
+import { ViewerDashboard } from "@/components/dashboards/viewer-dashboard";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
@@ -24,6 +29,7 @@ import {
   generateThroughputSeries, generateLatencySeries, generateQueueLagSeries,
   generateEventDistribution, generateTimeSeries, generateTimelineEvents, type AppEvent,
 } from "@/lib/mock-data";
+import { useAuthStore } from "@/store/auth-store";
 import { UnifiedTimeline } from "@/components/unified-timeline";
 import { formatDistanceToNow, format } from "date-fns";
 import { ChevronRight, RefreshCw, ListFilter as Filter, Download } from "lucide-react";
@@ -33,7 +39,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Dashboard — Pulse" },
-      { name: "description", content: "Realtime overview of events, queues, workers, alerts and ML insights." },
+      { name: "description", content: "Realtime overview of events, queues, workers and ML insights." },
     ],
   }),
   component: DashboardPage,
@@ -45,6 +51,18 @@ const STATUS_TONE = {
 const SEV_TONE = { info: "info", warning: "warning", error: "error", critical: "critical" } as const;
 
 function DashboardPage() {
+  const role = useAuthStore((s) => s.user?.role);
+
+  if (role === "super_admin") return <><RoleDashboardHeader /><SuperAdminDashboard /></>;
+  if (role === "admin") return <><RoleDashboardHeader /><AdminDashboard /></>;
+  if (role === "sre") return <><RoleDashboardHeader /><SREDashboard /></>;
+  if (role === "developer") return <><RoleDashboardHeader /><DeveloperDashboard /></>;
+  if (role === "viewer") return <><RoleDashboardHeader /><ViewerDashboard /></>;
+
+  return <OverviewDashboard />;
+}
+
+function OverviewDashboard() {
   const initialEvents = useMemo(() => generateEvents(40), []);
   const [events, setEvents] = useState<AppEvent[]>(initialEvents);
   const [alerts, setAlerts] = useState(useMemo(() => generateAlerts(6), []));
@@ -65,7 +83,6 @@ function DashboardPage() {
   const timelineEvents = useMemo(() => generateTimelineEvents(40), []);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
 
-  // Mock realtime: prepend a new event every 2.5s
   useEffect(() => {
     const id = setInterval(() => {
       const [next] = generateEvents(1);
@@ -94,7 +111,6 @@ function DashboardPage() {
         }
       />
 
-      {/* Metric cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
         <MetricCard label="Events / sec" value="847" series={sparkA} trend={4.2} status="info" variant="area" />
         <MetricCard label="API latency p95" value="142" unit="ms" series={sparkB} trend={-3.1} trendInverted status="info" />
@@ -106,7 +122,6 @@ function DashboardPage() {
         <MetricCard label="System uptime" value="99.992" unit="%" series={sparkH} trend={0.01} status="success" />
       </div>
 
-      {/* Charts row */}
       <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-3">
         <ChartCard className="lg:col-span-2" title="Event throughput" description="Successful vs failed events per minute">
           <div className="h-56">
@@ -202,7 +217,6 @@ function DashboardPage() {
         </ChartCard>
       </div>
 
-      {/* Realtime event stream + side rail */}
       <div className="grid grid-cols-1 gap-3 px-6 pt-3 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -229,19 +243,11 @@ function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {events.slice(0, 30).map((e) => (
-                  <TableRow
-                    key={e.id}
-                    className="cursor-pointer border-border text-xs hover:bg-accent/40"
-                    onClick={() => setSelectedEvent(e)}
-                  >
-                    <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">
-                      {format(new Date(e.timestamp), "HH:mm:ss")}
-                    </TableCell>
+                  <TableRow key={e.id} className="cursor-pointer border-border text-xs hover:bg-accent/40" onClick={() => setSelectedEvent(e)}>
+                    <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{format(new Date(e.timestamp), "HH:mm:ss")}</TableCell>
                     <TableCell className="py-1.5 font-mono text-[11px]">{e.eventType}</TableCell>
                     <TableCell className="py-1.5 text-[11px]">{e.organization}</TableCell>
-                    <TableCell className="py-1.5">
-                      <StatusBadge tone={STATUS_TONE[e.status]}>{e.status}</StatusBadge>
-                    </TableCell>
+                    <TableCell className="py-1.5"><StatusBadge tone={STATUS_TONE[e.status]}>{e.status}</StatusBadge></TableCell>
                     <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{e.queue}</TableCell>
                     <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{e.worker.replace("worker-", "")}</TableCell>
                     <TableCell className={cn("py-1.5 text-right font-mono text-[11px] tabular-nums", e.latencyMs > 300 && "text-warning")}>{e.latencyMs}ms</TableCell>
@@ -255,13 +261,7 @@ function DashboardPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <UnifiedTimeline
-            events={timelineEvents}
-            title="Unified timeline"
-            description="Deploys, alerts, incidents, SLO breaches — in chronological order"
-            compact
-            maxVisible={12}
-          />
+          <UnifiedTimeline events={timelineEvents} title="Unified timeline" description="Deploys, alerts, incidents, SLO breaches — in chronological order" compact maxVisible={12} />
           <div className="rounded-lg border border-border bg-card">
             <div className="border-b border-border px-4 py-2.5">
               <h3 className="text-sm font-semibold tracking-tight">Active alerts</h3>
@@ -276,7 +276,6 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Queues + workers */}
       <div className="grid grid-cols-1 gap-3 px-6 py-3 lg:grid-cols-2">
         <div>
           <div className="mb-2 flex items-center justify-between">
@@ -298,7 +297,6 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Event detail dialog */}
       <Dialog open={!!selectedEvent} onOpenChange={(o) => !o && setSelectedEvent(null)}>
         <DialogContent className="max-w-2xl">
           {selectedEvent && (

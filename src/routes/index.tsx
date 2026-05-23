@@ -79,6 +79,7 @@ function DashboardPage() {
 
   return (
     <div className="flex flex-col">
+      <RoleDashboardHeader />
       <PageHeader
         title="Overview"
         description="Realtime health across events, queues, workers and ML."

@@ -841,3 +841,6 @@ export {
   symbolSquare as y,
   symbolStar as z
 };
+
+
+export { y, x, s, k, a, c }

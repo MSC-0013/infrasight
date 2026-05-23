@@ -2821,3 +2821,6 @@ export {
   generateEndpointHeatmap as y,
   generateEventDistribution as z
 };
+
+
+export { r }

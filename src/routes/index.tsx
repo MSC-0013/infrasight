@@ -12,6 +12,7 @@ import { AlertCard } from "@/components/alert-card";
 import { QueueCard } from "@/components/queue-card";
 import { WorkerCard } from "@/components/worker-card";
 import { JSONViewer } from "@/components/json-viewer";
+import { RoleDashboardHeader } from "@/components/role-dashboard-header";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
@@ -78,6 +79,7 @@ function DashboardPage() {
 
   return (
     <div className="flex flex-col">
+      <RoleDashboardHeader />
       <PageHeader
         title="Overview"
         description="Realtime health across events, queues, workers and ML."

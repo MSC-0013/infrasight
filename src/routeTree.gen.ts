@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkersRouteImport } from './routes/workers'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as TracesRouteImport } from './routes/traces'
 import { Route as TopologyRouteImport } from './routes/topology'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -36,6 +37,11 @@ import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents.$inc
 const WorkersRoute = WorkersRouteImport.update({
   id: '/workers',
   path: '/workers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TracesRoute = TracesRouteImport.update({
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/topology'
     | '/traces'
+    | '/welcome'
     | '/workers'
     | '/incidents/$incidentId'
     | '/traces/$traceId'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/topology'
     | '/traces'
+    | '/welcome'
     | '/workers'
     | '/incidents/$incidentId'
     | '/traces/$traceId'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/topology'
     | '/traces'
+    | '/welcome'
     | '/workers'
     | '/incidents/$incidentId'
     | '/traces/$traceId'
@@ -324,6 +336,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TopologyRoute: typeof TopologyRoute
   TracesRoute: typeof TracesRouteWithChildren
+  WelcomeRoute: typeof WelcomeRoute
   WorkersRoute: typeof WorkersRoute
 }
 
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/workers'
       fullPath: '/workers'
       preLoaderRoute: typeof WorkersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/traces': {
@@ -537,6 +557,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TopologyRoute: TopologyRoute,
   TracesRoute: TracesRouteWithChildren,
+  WelcomeRoute: WelcomeRoute,
   WorkersRoute: WorkersRoute,
 }
 export const routeTree = rootRouteImport

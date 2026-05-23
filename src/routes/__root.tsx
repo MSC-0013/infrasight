@@ -6,7 +6,7 @@ import appCss from "../styles.css?url";
 
 const queryClient = new QueryClient();
 
-const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/welcome"];
 
 function NotFoundComponent() {
   return (

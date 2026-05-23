@@ -833,3 +833,346 @@ export function generateFilterPresets(): FilterPreset[] {
     { id: id(), name: "Critical alerts", scope: "alerts", query: "severity:critical ack:false" },
   ];
 }
+
+// ---------- Correlation Engine ----------
+
+export interface CorrelationLink {
+  kind: "log" | "event" | "trace" | "incident" | "alert" | "deployment";
+  id: string;
+  title: string;
+  tone?: "success" | "warning" | "error" | "info" | "neutral" | "critical";
+}
+
+export interface CorrelatedContext {
+  entity: CorrelationLink;
+  service?: string;
+  deployment?: CorrelationLink;
+  incident?: CorrelationLink;
+  alerts: CorrelationLink[];
+  traces: CorrelationLink[];
+  logs: CorrelationLink[];
+  queues: CorrelationLink[];
+  workers: CorrelationLink[];
+  endpoints: CorrelationLink[];
+  region?: string;
+  environment?: string;
+  aiSummary?: string;
+}
+
+// ---------- SLO / Error Budget ----------
+
+export interface SLI {
+  name: string;
+  type: "availability" | "latency" | "error_rate" | "throughput";
+  target: number;
+  current: number;
+  unit: string;
+}
+
+export interface SLO {
+  id: string;
+  name: string;
+  service: string;
+  status: "healthy" | "at_risk" | "breached";
+  budgetRemaining: number;
+  burnRate: number;
+  burnRateWindow: string;
+  slis: SLI[];
+  period: string;
+}
+
+// ---------- Unified Timeline ----------
+
+export type TimelineEventType = "deploy" | "alert" | "incident" | "queue_spike" | "worker_restart" | "config_change" | "slo_breach" | "ai_anomaly";
+
+export interface TimelineEvent {
+  id: string;
+  timestamp: string;
+  type: TimelineEventType;
+  title: string;
+  description: string;
+  service?: string;
+  severity?: Severity;
+  link?: CorrelationLink;
+}
+
+// ---------- Deployment Intelligence ----------
+
+export interface DeploymentImpact {
+  deploymentId: string;
+  service: string;
+  version: string;
+  environment: string;
+  beforeP95: number;
+  afterP95: number;
+  beforeErrorRate: number;
+  afterErrorRate: number;
+  beforeRps: number;
+  afterRps: number;
+  regressionDetected: boolean;
+  confidenceScore: number;
+  affectedServices: string[];
+  latencyDiff: number;
+  errorRateDiff: number;
+}
+
+// ---------- Heatmaps ----------
+
+export interface HeatmapCell {
+  x: number;
+  y: number;
+  value: number;
+  label?: string;
+}
+
+export interface HeatmapData {
+  title: string;
+  xLabel: string;
+  yLabel: string;
+  cells: HeatmapCell[];
+  maxValue: number;
+}
+
+// ---------- Investigation Workspace ----------
+
+export interface InvestigationItem {
+  kind: "log" | "event" | "trace" | "incident" | "alert" | "deployment";
+  id: string;
+  title: string;
+  addedAt: string;
+  note?: string;
+}
+
+export interface InvestigationNote {
+  id: string;
+  text: string;
+  author: string;
+  at: string;
+}
+
+export interface InvestigationSession {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  items: InvestigationItem[];
+  notes: InvestigationNote[];
+  status: "active" | "resolved" | "archived";
+}
+
+// ---------- Universal Search ----------
+
+export type SearchableEntityKind = "trace" | "incident" | "service" | "deployment" | "endpoint" | "log" | "alert" | "queue" | "worker" | "api_key" | "member" | "region";
+
+export interface SearchableEntity {
+  kind: SearchableEntityKind;
+  id: string;
+  title: string;
+  subtitle?: string;
+  route: string;
+  tone?: "success" | "warning" | "error" | "info" | "neutral" | "critical";
+}
+
+// ---------- Environment ----------
+
+export type Environment = "prod" | "staging" | "dev" | "preview";
+
+export interface EnvironmentInfo {
+  slug: Environment;
+  label: string;
+  color: string;
+  region: string;
+}
+
+export const ENVIRONMENTS: EnvironmentInfo[] = [
+  { slug: "prod", label: "Production", color: "var(--color-success)", region: "us-east-1" },
+  { slug: "staging", label: "Staging", color: "var(--color-warning)", region: "us-east-1" },
+  { slug: "dev", label: "Development", color: "var(--color-info)", region: "us-east-1" },
+  { slug: "preview", label: "Preview", color: "var(--color-muted-foreground)", region: "us-west-2" },
+];
+
+function pickMultiple<T>(arr: T[], count: number): T[] {
+  const result: T[] = [];
+  const available = [...arr];
+  for (let i = 0; i < count && available.length > 0; i++) {
+    const idx = Math.floor(r() * available.length);
+    result.push(available.splice(idx, 1)[0]);
+  }
+  return result;
+}
+
+export function generateSLOs(): SLO[] {
+  const defs: Array<{ name: string; service: string; slis: SLI[] }> = [
+    { name: "API Availability", service: "api-gateway", slis: [
+      { name: "Availability", type: "availability", target: 99.99, current: 99.992, unit: "%" },
+      { name: "p95 Latency", type: "latency", target: 200, current: 142, unit: "ms" },
+    ]},
+    { name: "Event Processing", service: "event-service", slis: [
+      { name: "Availability", type: "availability", target: 99.95, current: 99.94, unit: "%" },
+      { name: "Error Rate", type: "error_rate", target: 1, current: 1.24, unit: "%" },
+    ]},
+    { name: "Auth Latency", service: "auth-service", slis: [
+      { name: "p99 Latency", type: "latency", target: 500, current: 380, unit: "ms" },
+      { name: "Availability", type: "availability", target: 99.99, current: 99.998, unit: "%" },
+    ]},
+    { name: "ML Inference", service: "ml-service", slis: [
+      { name: "p95 Inference", type: "latency", target: 300, current: 218, unit: "ms" },
+      { name: "Accuracy", type: "throughput", target: 95, current: 91.2, unit: "%" },
+    ]},
+    { name: "Worker Throughput", service: "worker-service", slis: [
+      { name: "Availability", type: "availability", target: 99.9, current: 99.85, unit: "%" },
+      { name: "Throughput", type: "throughput", target: 2000, current: 1840, unit: "rps" },
+    ]},
+  ];
+  return defs.map(d => {
+    const breached = d.slis.some(s => {
+      if (s.type === "error_rate") return s.current > s.target;
+      if (s.type === "latency") return s.current > s.target;
+      return s.current < s.target;
+    });
+    const atRisk = !breached && d.slis.some(s => {
+      if (s.type === "availability") return s.current < s.target + 0.05;
+      return false;
+    });
+    return {
+      id: `slo_${id()}`,
+      name: d.name,
+      service: d.service,
+      status: breached ? "breached" : atRisk ? "at_risk" : "healthy" as SLO["status"],
+      budgetRemaining: breached ? Math.round(between(2, 15)) : atRisk ? Math.round(between(15, 40)) : Math.round(between(60, 98)),
+      burnRate: breached ? +(between(3, 14)).toFixed(1) : atRisk ? +(between(1, 3)).toFixed(1) : +(between(0.1, 0.8)).toFixed(1),
+      burnRateWindow: "1h",
+      slis: d.slis,
+      period: "30d",
+    };
+  });
+}
+
+export function generateTimelineEvents(count = 30): TimelineEvent[] {
+  const now = Date.now();
+  const items: Array<Omit<TimelineEvent, "id" | "timestamp">> = [
+    { type: "deploy", title: "event-service v2.14.3", description: "Deployed to prod", service: "event-service", severity: "info" },
+    { type: "alert", title: "Queue depth spike", description: "events.high depth > 10k", service: "event-service", severity: "warning" },
+    { type: "incident", title: "INC-1001 opened", description: "Elevated 5xx on api-gateway", service: "api-gateway", severity: "critical" },
+    { type: "queue_spike", title: "events.high backlog", description: "Lag 4.2s, 12k messages", service: "event-service", severity: "error" },
+    { type: "worker_restart", title: "worker-eu-west-1b restarted", description: "OOM kill, auto-recovered", severity: "warning" },
+    { type: "config_change", title: "Rate limit updated", description: "api-gateway: 2000 to 2500 rps", service: "api-gateway", severity: "info" },
+    { type: "slo_breach", title: "SLO at risk: Event Processing", description: "Budget remaining 18%", service: "event-service", severity: "error" },
+    { type: "ai_anomaly", title: "Anomaly: latency drift", description: "worker-service +220ms above baseline", service: "worker-service", severity: "warning" },
+    { type: "deploy", title: "auth-service v2.12.1", description: "Hotfix: token validation", service: "auth-service", severity: "info" },
+    { type: "alert", title: "DLQ growing", description: "webhooks queue DLQ > 100", service: "event-service", severity: "warning" },
+  ];
+  return items.slice(0, count).map((x, i) => ({
+    ...x,
+    id: id(),
+    timestamp: new Date(now - i * (120_000 + Math.floor(r() * 480_000))).toISOString(),
+    link: x.service ? { kind: "event" as const, id: id(), title: x.title } : undefined,
+  }));
+}
+
+export function generateDeploymentImpacts(): DeploymentImpact[] {
+  const deploys = generateDeployments(8);
+  return deploys.filter(d => d.status === "succeeded" || d.status === "rolled_back").map(d => {
+    const beforeP95 = Math.round(between(80, 300));
+    const afterP95 = d.status === "rolled_back" ? Math.round(beforeP95 * between(1.2, 1.8)) : Math.round(beforeP95 * between(0.7, 1.1));
+    const beforeErr = +(between(0.2, 2.0)).toFixed(2);
+    const afterErr = d.status === "rolled_back" ? +(beforeErr * between(2, 5)).toFixed(2) : +(beforeErr * between(0.5, 1.3)).toFixed(2);
+    return {
+      deploymentId: d.id,
+      service: d.service,
+      version: d.version,
+      environment: d.environment,
+      beforeP95,
+      afterP95,
+      beforeErrorRate: beforeErr,
+      afterErrorRate: afterErr,
+      beforeRps: Math.round(between(400, 2800)),
+      afterRps: Math.round(between(400, 2800)),
+      regressionDetected: (afterP95 - beforeP95) > 50 || (afterErr - beforeErr) > 0.5,
+      confidenceScore: +(between(0.72, 0.98)).toFixed(2),
+      affectedServices: [d.service, ...pickMultiple(["api-gateway", "auth-service", "event-service", "redis-cluster"], Math.floor(between(1, 3)))],
+      latencyDiff: afterP95 - beforeP95,
+      errorRateDiff: +(afterErr - beforeErr).toFixed(2),
+    };
+  });
+}
+
+export function generateLatencyHeatmap(): HeatmapData {
+  const services = ["api-gateway", "auth-service", "event-service", "worker-service", "ml-service", "analytics-service"];
+  const cells: HeatmapCell[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let s = 0; s < services.length; s++) {
+      const isPeak = h >= 9 && h <= 17;
+      cells.push({ x: h, y: s, value: Math.round(isPeak ? between(120, 480) : between(30, 180)), label: `${h}:00` });
+    }
+  }
+  return { title: "Latency Heatmap", xLabel: "Hour", yLabel: "Service", cells, maxValue: 500 };
+}
+
+export function generateEndpointHeatmap(): HeatmapData {
+  const endpoints = ["/v1/events", "/v1/ingest", "/v1/auth", "/v1/queues", "/v1/workers", "/v1/me"];
+  const codes = ["200", "400", "401", "404", "500", "503"];
+  const cells: HeatmapCell[] = [];
+  for (let e = 0; e < endpoints.length; e++) {
+    for (let c = 0; c < codes.length; c++) {
+      const isError = parseInt(codes[c]) >= 400;
+      cells.push({ x: e, y: c, value: Math.round(isError ? between(0, 80) : between(200, 4000)) });
+    }
+  }
+  return { title: "Endpoint x Status Code", xLabel: "Endpoint", yLabel: "Status", cells, maxValue: 4000 };
+}
+
+export function generateServiceDependencyHeatmap(): HeatmapData {
+  const svcs = ["api-gw", "auth", "events", "worker", "ml", "postgres"];
+  const cells: HeatmapCell[] = [];
+  for (let a = 0; a < svcs.length; a++) {
+    for (let b = 0; b < svcs.length; b++) {
+      cells.push({ x: a, y: b, value: a === b ? 0 : (r() > 0.6 ? Math.round(between(50, 800)) : Math.round(between(0, 20))) });
+    }
+  }
+  return { title: "Service Dependency RPS", xLabel: "Downstream", yLabel: "Upstream", cells, maxValue: 800 };
+}
+
+export function generateSearchIndex(): SearchableEntity[] {
+  const items: SearchableEntity[] = [];
+  generateTraces(20).forEach(t => items.push({ kind: "trace", id: t.id, title: t.rootOperation, subtitle: `${t.rootService} · ${t.durationMs}ms`, route: `/traces/${t.id}`, tone: t.status === "error" ? "error" : t.status === "degraded" ? "warning" : "success" }));
+  generateIncidents().forEach(i => items.push({ kind: "incident", id: i.id, title: i.title, subtitle: i.severity, route: `/incidents/${i.id}`, tone: i.severity === "sev1" ? "critical" : i.severity === "sev2" ? "error" : "warning" }));
+  generateServices().forEach(s => items.push({ kind: "service", id: s.id, title: s.name, subtitle: `${s.status} · ${s.rps} rps`, route: `/services/${s.name}`, tone: s.status === "healthy" ? "success" : s.status === "degraded" ? "warning" : "error" }));
+  generateDeployments(10).forEach(d => items.push({ kind: "deployment", id: d.id, title: `${d.service}@${d.version}`, subtitle: d.environment, route: "/deployments", tone: d.status === "succeeded" ? "success" : d.status === "failed" ? "error" : "warning" }));
+  generateApiEndpoints().forEach(e => items.push({ kind: "endpoint", id: `${e.method}:${e.path}`, title: `${e.method} ${e.path}`, subtitle: `${e.rps} rps · ${e.p95}ms`, route: "/api", tone: e.errorRate > 1 ? "error" : "info" }));
+  generateAlerts(10).forEach(a => items.push({ kind: "alert", id: a.id, title: a.title, subtitle: a.severity, route: "/alerts", tone: a.severity === "critical" ? "critical" : a.severity === "error" ? "error" : "warning" }));
+  generateQueues().forEach(q => items.push({ kind: "queue", id: q.id, title: q.name, subtitle: `${q.messages} msgs · ${q.status}`, route: "/queues", tone: q.status === "backlogged" ? "error" : q.status === "degraded" ? "warning" : "success" }));
+  generateWorkers().forEach(w => items.push({ kind: "worker", id: w.id, title: w.name, subtitle: `${w.status} · ${w.region}`, route: "/workers", tone: w.status === "online" ? "success" : "error" }));
+  generateApiKeys().forEach(k => items.push({ kind: "api_key", id: k.id, title: k.name, subtitle: k.prefix, route: "/settings" }));
+  generateMembers().forEach(m => items.push({ kind: "member", id: m.id, title: m.name, subtitle: `${m.role} · ${m.team}`, route: "/settings" }));
+  REGIONS.forEach(rg => items.push({ kind: "region", id: rg, title: rg, subtitle: "AWS region", route: "/" }));
+  return items;
+}
+
+export function buildCorrelatedContext(kind: CorrelationLink["kind"], entityId: string, entityTitle: string, service?: string): CorrelatedContext {
+  const svc = service ?? pick(SERVICES);
+  const alerts = generateAlerts(3).slice(0, Math.floor(between(0, 3))).map(a => ({ kind: "alert" as const, id: a.id, title: a.title, tone: a.severity === "critical" ? "critical" as const : a.severity === "error" ? "error" as const : "warning" as const }));
+  const traces = generateTraces(3).slice(0, Math.floor(between(1, 3))).map(t => ({ kind: "trace" as const, id: t.id, title: `${t.rootOperation} · ${t.durationMs}ms`, tone: t.status === "ok" ? "success" as const : "error" as const }));
+  const logs = generateLogs(4).slice(0, Math.floor(between(2, 4))).map(l => ({ kind: "log" as const, id: l.id, title: `${l.level}: ${l.message.slice(0, 60)}`, tone: l.level === "error" || l.level === "critical" ? "error" as const : l.level === "warn" ? "warning" as const : "neutral" as const }));
+  const queues = generateQueues().slice(0, 2).map(q => ({ kind: "event" as const, id: q.id, title: `${q.name} · ${q.messages}`, tone: q.status === "backlogged" ? "error" as const : q.status === "degraded" ? "warning" as const : "success" as const }));
+  const workers = generateWorkers().slice(0, 2).map(w => ({ kind: "event" as const, id: w.id, title: `${w.name} · ${w.status}`, tone: w.status === "online" ? "success" as const : "error" as const }));
+  const endpoints = generateApiEndpoints().slice(0, 2).map(e => ({ kind: "event" as const, id: `${e.method}:${e.path}`, title: `${e.method} ${e.path}`, tone: e.errorRate > 1 ? "error" as const : "info" as const }));
+  const deploy = generateDeployments(1)[0];
+  const incident = generateIncidents()[0];
+  const aiSummary = `Correlated anomaly: ${entityTitle} in ${svc} shows elevated latency correlated with deploy ${deploy.version} and ${alerts.length} active alerts. Probable cause: connection pool saturation after configuration change.`;
+  return {
+    entity: { kind, id: entityId, title: entityTitle },
+    service: svc,
+    deployment: { kind: "deployment", id: deploy.id, title: `${deploy.service}@${deploy.version}`, tone: deploy.status === "succeeded" ? "success" : "error" },
+    incident: alerts.length > 0 ? { kind: "incident", id: incident.id, title: incident.title, tone: "error" } : undefined,
+    alerts,
+    traces,
+    logs,
+    queues,
+    workers,
+    endpoints,
+    region: pick(REGIONS),
+    environment: "prod",
+    aiSummary,
+  };
+}

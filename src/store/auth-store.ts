@@ -27,12 +27,14 @@ export const PERMISSIONS: Record<Role, string[]> = {
     "view:dashboard", "view:events", "view:traces", "view:logs",
     "view:services", "view:topology", "view:analytics", "view:api",
     "view:queues", "view:workers", "view:deployments", "view:mlops",
-    "view:alerts", "view:incidents", "manage:incidents",
+    "view:alerts", "view:incidents", "view:slos", "view:heatmaps",
+    "manage:incidents",
   ],
   viewer: [
     "view:dashboard", "view:events", "view:traces", "view:logs",
     "view:services", "view:topology", "view:analytics", "view:api",
     "view:queues", "view:workers", "view:alerts", "view:incidents",
+    "view:slos", "view:heatmaps",
   ],
 };
 

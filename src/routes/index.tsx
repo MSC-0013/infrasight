@@ -22,10 +22,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   generateEvents, generateAlerts, generateWorkers, generateQueues,
   generateThroughputSeries, generateLatencySeries, generateQueueLagSeries,
-  generateEventDistribution, generateTimeSeries, type AppEvent,
+  generateEventDistribution, generateTimeSeries, generateTimelineEvents, type AppEvent,
 } from "@/lib/mock-data";
+import { UnifiedTimeline } from "@/components/unified-timeline";
 import { formatDistanceToNow, format } from "date-fns";
-import { ChevronRight, RefreshCw, Filter, Download } from "lucide-react";
+import { ChevronRight, RefreshCw, ListFilter as Filter, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -61,6 +62,7 @@ function DashboardPage() {
   const sparkF = useMemo(() => generateTimeSeries(20, 99.4, 0.4), []);
   const sparkG = useMemo(() => generateTimeSeries(20, 1240, 200), []);
   const sparkH = useMemo(() => generateTimeSeries(20, 8, 1), []);
+  const timelineEvents = useMemo(() => generateTimelineEvents(40), []);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
 
   // Mock realtime: prepend a new event every 2.5s
@@ -253,6 +255,13 @@ function DashboardPage() {
         </div>
 
         <div className="flex flex-col gap-3">
+          <UnifiedTimeline
+            events={timelineEvents}
+            title="Unified timeline"
+            description="Deploys, alerts, incidents, SLO breaches — in chronological order"
+            compact
+            maxVisible={12}
+          />
           <div className="rounded-lg border border-border bg-card">
             <div className="border-b border-border px-4 py-2.5">
               <h3 className="text-sm font-semibold tracking-tight">Active alerts</h3>

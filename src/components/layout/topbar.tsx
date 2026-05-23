@@ -9,13 +9,13 @@ import { TimeRangeSelector } from "@/components/time-range-selector";
 import { RoleBadge } from "@/components/role-badge";
 import { useUIStore } from "@/store/ui-store";
 import { useAuthStore, ROLE_LABEL, type Role } from "@/store/auth-store";
-import { generateOrganizations } from "@/lib/mock-data";
+import { generateOrganizations, ENVIRONMENTS } from "@/lib/mock-data";
 import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "@tanstack/react-router";
 
 export function Topbar() {
-  const { organization, setOrganization } = useUIStore();
+  const { organization, setOrganization, environment, setEnvironment } = useUIStore();
   const { user, setRole, signOut } = useAuthStore();
   const navigate = useNavigate();
   const orgs = useMemo(() => generateOrganizations(), []);
@@ -26,6 +26,7 @@ export function Topbar() {
   }, [dark]);
 
   const current = orgs.find((o) => o.slug === organization) ?? orgs[0];
+  const currentEnv = ENVIRONMENTS.find((e) => e.slug === environment) ?? ENVIRONMENTS[0];
 
   const handleSignOut = () => {
     signOut();
@@ -46,6 +47,27 @@ export function Topbar() {
       <div className="ml-auto flex items-center gap-2">
         <TimeRangeSelector />
         <RealtimeIndicator />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs hover:bg-accent">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: currentEnv.color }} />
+            <span className="font-medium">{currentEnv.label}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{currentEnv.region}</span>
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="text-xs">Environment</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {ENVIRONMENTS.map((e) => (
+              <DropdownMenuItem key={e.slug} className="text-xs" onSelect={() => setEnvironment(e.slug)}>
+                <span className="mr-2 h-1.5 w-1.5 rounded-full" style={{ background: e.color }} />
+                <span className="flex-1">{e.label}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">{e.region}</span>
+                {e.slug === environment && <Check className="ml-2 h-3 w-3" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs hover:bg-accent">

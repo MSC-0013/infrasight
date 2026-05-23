@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { CorrelatedContext } from "@/lib/mock-data";
 
 export type InspectorKind = "log" | "event" | "trace" | "incident" | "alert" | "deployment";
 
@@ -10,6 +11,7 @@ export interface InspectorPayload {
   data: Record<string, unknown>;
   relatedTraceId?: string;
   service?: string;
+  correlation?: CorrelatedContext;
 }
 
 interface InspectorState {

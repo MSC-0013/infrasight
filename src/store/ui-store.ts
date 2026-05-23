@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { Environment } from "@/lib/mock-data";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -8,6 +9,8 @@ interface UIState {
   setRealtimeConnected: (v: boolean) => void;
   organization: string;
   setOrganization: (v: string) => void;
+  environment: Environment;
+  setEnvironment: (v: Environment) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -18,4 +21,6 @@ export const useUIStore = create<UIState>((set) => ({
   setRealtimeConnected: (v) => set({ realtimeConnected: v }),
   organization: "acme-prod",
   setOrganization: (v) => set({ organization: v }),
+  environment: "prod",
+  setEnvironment: (v) => set({ environment: v }),
 }));

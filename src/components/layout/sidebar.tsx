@@ -1,9 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  LayoutDashboard, Search, BarChart3, Layers, Cpu, Bell, Sparkles,
-  Network, Building2, Settings, ChevronsLeft, ChevronsRight, Activity,
-  Workflow, FileText, AlertOctagon, GitBranch, ShieldCheck, Boxes,
-} from "lucide-react";
+import { LayoutDashboard, Search, ChartBar as BarChart3, Layers, Cpu, Bell, Sparkles, Network, Building2, Settings, ChevronsLeft, ChevronsRight, Activity, Workflow, FileText, OctagonAlert as AlertOctagon, GitBranch, ShieldCheck, Boxes, Flame, Grid3x2 as Grid3X3 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
@@ -27,7 +23,9 @@ const SECTIONS: readonly NavSection[] = [
       { to: "/traces", label: "Traces", icon: Workflow, perm: "view:traces" },
       { to: "/logs", label: "Logs", icon: FileText, perm: "view:logs" },
       { to: "/analytics", label: "Analytics", icon: BarChart3, perm: "view:analytics" },
+      { to: "/slos", label: "SLOs & Budgets", icon: Flame, perm: "view:slos" },
       { to: "/api", label: "API Monitoring", icon: Boxes, perm: "view:api" },
+      { to: "/heatmaps", label: "Heatmaps", icon: Grid3X3, perm: "view:heatmaps" },
     ],
   },
   {

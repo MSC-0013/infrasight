@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -25,7 +25,12 @@ function ServicesPage() {
       />
       <div className="grid gap-3 px-6 py-4 lg:grid-cols-2">
         {services.map((s) => (
-          <div key={s.id} className="rounded-md border border-border bg-card p-4">
+          <Link
+            key={s.id}
+            to="/services/$serviceName"
+            params={{ serviceName: s.name }}
+            className="rounded-md border border-border bg-card p-4 hover:border-primary/30 transition-colors"
+          >
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -50,12 +55,17 @@ function ServicesPage() {
             <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
               <span className="font-mono text-[10px] uppercase text-muted-foreground">depends on</span>
               {s.dependsOn.map((d) => (
-                <span key={d} className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">
+                <Link
+                  key={d}
+                  to="/services/$serviceName"
+                  params={{ serviceName: d }}
+                  className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent"
+                >
                   {d}
-                </span>
+                </Link>
               ))}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

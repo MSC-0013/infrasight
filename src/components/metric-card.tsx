@@ -4,12 +4,12 @@ import { ResponsiveContainer, LineChart, Line, AreaChart, Area } from "recharts"
 
 interface Props {
   label: string;
-  value: string;
+  value: string | number;
   unit?: string;
   trend?: number; // percent
   trendInverted?: boolean; // if true, negative = good (e.g. latency)
   series?: Array<{ value: number }>;
-  status?: "success" | "warning" | "error" | "info";
+  status?: "success" | "warning" | "error" | "info" | "critical";
   variant?: "line" | "area";
 }
 
@@ -17,6 +17,7 @@ const statusToColor: Record<NonNullable<Props["status"]>, string> = {
   success: "var(--color-success)",
   warning: "var(--color-warning)",
   error: "var(--color-destructive)",
+  critical: "var(--color-destructive)",
   info: "var(--color-primary)",
 };
 

@@ -23,13 +23,13 @@ type SortDir = "asc" | "desc";
 type Density = "compact" | "comfortable";
 
 interface EventsSearch {
-  q: string;
-  status: string;
-  sev: string;
-  org: string;
-  sort: SortKey;
-  dir: SortDir;
-  density: Density;
+  q?: string;
+  status?: string;
+  sev?: string;
+  org?: string;
+  sort?: SortKey;
+  dir?: SortDir;
+  density?: Density;
 }
 
 export const Route = createFileRoute("/events")({
@@ -39,15 +39,17 @@ export const Route = createFileRoute("/events")({
       { name: "description", content: "Search, filter and inspect distributed events in realtime." },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>): EventsSearch => ({
-    q: typeof s.q === "string" ? s.q : "",
-    status: typeof s.status === "string" ? s.status : "all",
-    sev: typeof s.sev === "string" ? s.sev : "all",
-    org: typeof s.org === "string" ? s.org : "all",
-    sort: (["time", "latency", "retries", "type"] as const).includes(s.sort as SortKey) ? (s.sort as SortKey) : "time",
-    dir: s.dir === "asc" ? "asc" : "desc",
-    density: s.density === "comfortable" ? "comfortable" : "compact",
-  }),
+  validateSearch: (s: Record<string, unknown>): EventsSearch => {
+    const out: EventsSearch = {};
+    if (typeof s.q === "string" && s.q) out.q = s.q;
+    if (typeof s.status === "string" && s.status && s.status !== "all") out.status = s.status;
+    if (typeof s.sev === "string" && s.sev && s.sev !== "all") out.sev = s.sev;
+    if (typeof s.org === "string" && s.org && s.org !== "all") out.org = s.org;
+    if ((["latency", "retries", "type"] as const).includes(s.sort as SortKey)) out.sort = s.sort as SortKey;
+    if (s.dir === "asc") out.dir = "asc";
+    if (s.density === "comfortable") out.density = "comfortable";
+    return out;
+  },
   component: EventsPage,
 });
 
@@ -58,10 +60,19 @@ const ALL_COLS = ["time", "id", "type", "org", "status", "severity", "queue", "w
 type Col = (typeof ALL_COLS)[number];
 
 function EventsPage() {
-  const search = Route.useSearch();
+  const rawSearch = Route.useSearch();
+  const search = {
+    q: rawSearch.q ?? "",
+    status: rawSearch.status ?? "all",
+    sev: rawSearch.sev ?? "all",
+    org: rawSearch.org ?? "all",
+    sort: rawSearch.sort ?? ("time" as SortKey),
+    dir: rawSearch.dir ?? ("desc" as SortDir),
+    density: rawSearch.density ?? ("compact" as Density),
+  };
   const navigate = useNavigate({ from: "/events" });
-  const setSearch = (patch: Partial<EventsSearch>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }) as EventsSearch, replace: true });
+  const setSearch = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   const [events, setEvents] = useState<AppEvent[]>(useMemo(() => generateEvents(150), []));
   const [paused, setPaused] = useState(false);

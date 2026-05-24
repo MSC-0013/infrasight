@@ -13,9 +13,9 @@ import { MetricCard } from "@/components/metric-card";
 import { toast } from "sonner";
 
 interface AlertsSearch {
-  q: string;
-  sev: string;
-  scope: string;
+  q?: string;
+  sev?: string;
+  scope?: string;
 }
 
 export const Route = createFileRoute("/alerts")({
@@ -25,19 +25,22 @@ export const Route = createFileRoute("/alerts")({
       { name: "description", content: "Active alerts across services, queues, workers and ML." },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>): AlertsSearch => ({
-    q: typeof s.q === "string" ? s.q : "",
-    sev: typeof s.sev === "string" ? s.sev : "all",
-    scope: typeof s.scope === "string" ? s.scope : "all",
-  }),
+  validateSearch: (s: Record<string, unknown>): AlertsSearch => {
+    const out: AlertsSearch = {};
+    if (typeof s.q === "string" && s.q) out.q = s.q;
+    if (typeof s.sev === "string" && s.sev && s.sev !== "all") out.sev = s.sev;
+    if (typeof s.scope === "string" && s.scope && s.scope !== "all") out.scope = s.scope;
+    return out;
+  },
   component: AlertsPage,
 });
 
 function AlertsPage() {
-  const search = Route.useSearch();
+  const rawSearch = Route.useSearch();
+  const search = { q: rawSearch.q ?? "", sev: rawSearch.sev ?? "all", scope: rawSearch.scope ?? "all" };
   const navigate = useNavigate({ from: "/alerts" });
-  const setSearch = (patch: Partial<AlertsSearch>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }) as AlertsSearch, replace: true });
+  const setSearch = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   const [alerts, setAlerts] = useState<Alert[]>(useMemo(() => generateAlerts(24), []));
   const [checked, setChecked] = useState<Set<string>>(new Set());

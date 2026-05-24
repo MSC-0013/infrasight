@@ -9,16 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Search, Workflow } from "lucide-react";
 
 interface TracesSearch {
-  q: string;
-  status: string;
+  q?: string;
+  status?: string;
 }
 
 export const Route = createFileRoute("/traces")({
   head: () => ({ meta: [{ title: "Traces — Pulse" }, { name: "description", content: "Distributed trace explorer" }] }),
-  validateSearch: (s: Record<string, unknown>): TracesSearch => ({
-    q: typeof s.q === "string" ? s.q : "",
-    status: typeof s.status === "string" ? s.status : "all",
-  }),
+  validateSearch: (s: Record<string, unknown>): TracesSearch => {
+    const out: TracesSearch = {};
+    if (typeof s.q === "string" && s.q) out.q = s.q;
+    if (typeof s.status === "string" && s.status && s.status !== "all") out.status = s.status;
+    return out;
+  },
   component: TracesPage,
 });
 
@@ -26,10 +28,11 @@ const tone = (s: Trace["status"]) =>
   s === "ok" ? "success" : s === "degraded" ? "warning" : "error";
 
 function TracesPage() {
-  const search = Route.useSearch();
+  const rawSearch = Route.useSearch();
+  const search = { q: rawSearch.q ?? "", status: rawSearch.status ?? "all" };
   const navigate = useNavigate({ from: "/traces" });
-  const setSearch = (patch: Partial<TracesSearch>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }) as TracesSearch, replace: true });
+  const setSearch = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   const traces = useMemo(() => generateTraces(60), []);
   const filtered = traces.filter((t) => {

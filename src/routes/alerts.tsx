@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { AlertCard } from "@/components/alert-card";
@@ -19,6 +20,12 @@ interface AlertsSearch {
 }
 
 export const Route = createFileRoute("/alerts")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:alerts")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({
     meta: [
       { title: "Alerts — Pulse" },

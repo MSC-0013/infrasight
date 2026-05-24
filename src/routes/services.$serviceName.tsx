@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -20,6 +21,12 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/services/$serviceName")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:services")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Service — Pulse" }] }),
   component: ServiceDetailPage,
 });

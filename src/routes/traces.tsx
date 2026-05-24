@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -14,6 +15,12 @@ interface TracesSearch {
 }
 
 export const Route = createFileRoute("/traces")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:traces")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Traces — Pulse" }, { name: "description", content: "Distributed trace explorer" }] }),
   validateSearch: (s: Record<string, unknown>): TracesSearch => {
     const out: TracesSearch = {};

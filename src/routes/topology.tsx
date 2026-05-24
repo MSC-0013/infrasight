@@ -1,10 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { TopologyGraph } from "@/components/topology-graph";
 import { generateTopology } from "@/lib/mock-data";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/topology")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:topology")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Topology — Pulse" }] }),
   component: TopologyPage,
 });

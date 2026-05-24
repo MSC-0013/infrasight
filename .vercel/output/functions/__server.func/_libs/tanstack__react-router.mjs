@@ -1,5 +1,5 @@
 import { j as jsxRuntimeExports, r as reactExports, R as React, a as React$1 } from "./react.mjs";
-import { r as isNotFound, f as defaultGetScrollRestorationKey, x as restoreScroll, i as escapeHtml, z as storageKey, y as rootRouteId, s as isRedirect, m as getLocationChangeInfo, C as transformReadableStreamWithRouter, A as transformPipeableStreamWithRouter, p as isDangerousProtocol, j as exactPathTest, w as removeTrailingSlash, e as deepEqual, l as functionalUpdate, B as BaseRootRoute, a as BaseRoute, q as isModuleNotFoundError, R as RouterCore } from "./tanstack__router-core.mjs";
+import { r as isNotFound, f as defaultGetScrollRestorationKey, y as restoreScroll, i as escapeHtml, A as storageKey, z as rootRouteId, s as isRedirect, m as getLocationChangeInfo, D as transformReadableStreamWithRouter, C as transformPipeableStreamWithRouter, p as isDangerousProtocol, j as exactPathTest, x as removeTrailingSlash, e as deepEqual, l as functionalUpdate, B as BaseRootRoute, a as BaseRoute, q as isModuleNotFoundError, R as RouterCore } from "./tanstack__router-core.mjs";
 import { i as invariant } from "./tiny-invariant.mjs";
 import { a as ReactDOMServer } from "./react-dom.mjs";
 import { PassThrough } from "node:stream";

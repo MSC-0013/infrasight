@@ -1,7 +1,7 @@
 import { useAuthStore, ROLE_LABEL, type Role } from "@/store/auth-store";
 import { StatusBadge } from "@/components/status-badge";
 import { Link } from "@tanstack/react-router";
-import { AlertOctagon, GitBranch, Workflow, FileText, ShieldCheck, Bell, Sparkles, BarChart3, Network, Activity } from "lucide-react";
+import { OctagonAlert as AlertOctagon, GitBranch, Workflow, FileText, ShieldCheck, Bell, Sparkles, ChartBar as BarChart3, Network, Activity, Flame } from "lucide-react";
 
 interface RoleQuickAction {
   to: string;
@@ -82,7 +82,7 @@ const ROLE_VIEW: Record<Role, { headline: string; sub: string; tone: "info" | "s
     actions: [
       { to: "/services", label: "Service health", icon: BarChart3, hint: "Live" },
       { to: "/alerts", label: "Alerts feed", icon: Bell, hint: "Read-only" },
-      { to: "/mlops", label: "MLOps", icon: Sparkles, hint: "Model health" },
+      { to: "/slos", label: "SLOs & budgets", icon: Flame, hint: "Error budgets" },
     ],
     kpis: [
       { label: "System uptime", value: "99.992%" },

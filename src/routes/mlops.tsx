@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -8,6 +9,12 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { formatDistanceToNow } from "@/lib/format";
 
 export const Route = createFileRoute("/mlops")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:mlops")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "MLOps — Pulse" }, { name: "description", content: "Model serving, drift and inference monitoring" }] }),
   component: MLOpsPage,
 });

@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -7,6 +8,12 @@ import { formatDistanceToNow } from "@/lib/format";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/incidents")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:incidents")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Incidents — Pulse" }] }),
   component: IncidentsPage,
 });

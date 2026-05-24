@@ -1,5 +1,5 @@
 import { c as createMemoryHistory } from "../_libs/tanstack__history.mjs";
-import { y as rootRouteId, n as getNormalizedURL, o as getOrigin, b as attachRouterServerSsrUtils, h as defineHandlerCallback, d as createSerializationAdapter, c as createRawStreamRPCPlugin, r as isNotFound, s as isRedirect, t as isResolvedRedirect, v as mergeHeaders, k as executeRewriteInput, g as defaultSerovalPlugins, u as makeSerovalPlugin } from "../_libs/tanstack__router-core.mjs";
+import { z as rootRouteId, n as getNormalizedURL, o as getOrigin, b as attachRouterServerSsrUtils, h as defineHandlerCallback, d as createSerializationAdapter, c as createRawStreamRPCPlugin, r as isNotFound, s as isRedirect, t as isResolvedRedirect, v as mergeHeaders, k as executeRewriteInput, g as defaultSerovalPlugins, u as makeSerovalPlugin } from "../_libs/tanstack__router-core.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { H as H3Event, t as toResponse } from "../_libs/h3-v2.mjs";
 import { i as invariant } from "../_libs/tiny-invariant.mjs";
@@ -194,7 +194,7 @@ function getResponse() {
   return event.res;
 }
 async function getStartManifest(matchedRoutes) {
-  const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-DCfBQcJN.mjs");
+  const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-BOkSytFm.mjs");
   const startManifest = tsrStartManifest();
   const rootRoute = startManifest.routes[rootRouteId] = startManifest.routes[rootRouteId] || {};
   rootRoute.assets = rootRoute.assets || [];
@@ -763,7 +763,7 @@ let entriesPromise;
 let baseManifestPromise;
 let cachedFinalManifestPromise;
 async function loadEntries() {
-  const routerEntry = await import("./router-C7vl9p1Y.mjs").then((n) => n.ag);
+  const routerEntry = await import("./router-BB8e-L7y.mjs").then((n) => n.ag);
   const startEntry = await import("./start-HYkvq4Ni.mjs");
   return { startEntry, routerEntry };
 }

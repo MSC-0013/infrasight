@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
@@ -12,6 +13,12 @@ import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/heatmaps")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:heatmaps")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Heatmaps — Pulse" }] }),
   component: HeatmapsPage,
 });

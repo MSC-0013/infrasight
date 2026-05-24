@@ -25,7 +25,7 @@ export function AdminDashboard() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("engineer");
+  const [inviteRole, setInviteRole] = useState("developer");
 
   const activeMembers = members.filter(m => m.status === "active").length;
   const pendingInvites = members.filter(m => m.status === "invited").length;
@@ -163,9 +163,9 @@ export function AdminDashboard() {
             <Input placeholder="Email address" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
             <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
               <option value="admin">Admin</option>
-              <option value="engineer">Engineer</option>
+              <option value="sre">SRE</option>
+              <option value="developer">Developer</option>
               <option value="viewer">Viewer</option>
-              <option value="analyst">Analyst</option>
             </select>
             <Button className="w-full" onClick={() => { setInviteOpen(false); setInviteEmail(""); }}>Send invitation</Button>
           </div>

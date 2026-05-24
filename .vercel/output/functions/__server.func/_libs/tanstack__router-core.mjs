@@ -4797,9 +4797,10 @@ function transformStreamWithRouter(router, appStream, opts) {
   return stream;
 }
 export {
-  transformPipeableStreamWithRouter as A,
+  storageKey as A,
   BaseRootRoute as B,
-  transformReadableStreamWithRouter as C,
+  transformPipeableStreamWithRouter as C,
+  transformReadableStreamWithRouter as D,
   RouterCore as R,
   BaseRoute as a,
   attachRouterServerSsrUtils as b,
@@ -4823,8 +4824,8 @@ export {
   isResolvedRedirect as t,
   makeSerovalPlugin as u,
   mergeHeaders as v,
-  removeTrailingSlash as w,
-  restoreScroll as x,
-  rootRouteId as y,
-  storageKey as z
+  redirect as w,
+  removeTrailingSlash as x,
+  restoreScroll as y,
+  rootRouteId as z
 };

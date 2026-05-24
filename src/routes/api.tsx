@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
@@ -10,6 +11,12 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/api")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:api")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({
     meta: [
       { title: "API Monitoring — Pulse" },

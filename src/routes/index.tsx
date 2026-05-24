@@ -30,11 +30,11 @@ const FEATURES = [
 ];
 
 const DEMO_ACCOUNTS = [
-  { email: "admin@pulse.io", password: "admin123", role: "Super Admin", tone: "critical" as const, desc: "Full platform control, org governance, audit trails" },
-  { email: "ops@pulse.io", password: "ops123", role: "Admin", tone: "error" as const, desc: "Workspace admin, team & billing management" },
-  { email: "sre@pulse.io", password: "sre123", role: "SRE", tone: "warning" as const, desc: "Incidents, deployments, infrastructure health" },
-  { email: "dev@pulse.io", password: "dev123", role: "Developer", tone: "info" as const, desc: "Traces, logs, queues, debugging tools" },
-  { email: "viewer@pulse.io", password: "viewer123", role: "Viewer", tone: "success" as const, desc: "Read-only dashboards for stakeholders" },
+  { email: "admin@pulse.io", password: "admin123", role: "Super Admin", tone: "critical" as const, desc: "Full platform control, org governance, audit trails", perms: ["All features", "Org & billing", "API keys & SSO", "Audit trails"] },
+  { email: "ops@pulse.io", password: "ops123", role: "Admin", tone: "error" as const, desc: "Workspace admin, team & billing management", perms: ["Manage users", "Settings & API keys", "Alerts & incidents", "Audit log"] },
+  { email: "sre@pulse.io", password: "sre123", role: "SRE", tone: "warning" as const, desc: "Incidents, deployments, infrastructure health", perms: ["Manage incidents", "Deployments & queues", "Alerts & workers", "All observability"] },
+  { email: "dev@pulse.io", password: "dev123", role: "Developer", tone: "info" as const, desc: "Traces, logs, queues, debugging tools", perms: ["Traces & logs", "Events & services", "Manage incidents", "Deployments & MLOps"] },
+  { email: "viewer@pulse.io", password: "viewer123", role: "Viewer", tone: "success" as const, desc: "Read-only dashboards for stakeholders", perms: ["View dashboards", "Alerts & incidents", "Service health", "SLOs & heatmaps"] },
 ];
 
 const tooltipStyle = {
@@ -186,6 +186,13 @@ function LandingPage() {
                   </div>
                 </div>
                 <p className="mt-3 text-[11px] text-muted-foreground">{a.desc}</p>
+                <ul className="mt-2 space-y-1">
+                  {a.perms.map((p) => (
+                    <li key={p} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <Check className="h-2.5 w-2.5 text-success" /> {p}
+                    </li>
+                  ))}
+                </ul>
                 <Link to="/login" className="mt-4 block">
                   <Button size="sm" variant="outline" className="h-7 w-full gap-1.5 text-xs">
                     Sign in <ArrowRight className="h-3 w-3" />

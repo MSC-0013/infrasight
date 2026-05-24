@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { TraceWaterfall } from "@/components/trace-waterfall";
@@ -7,6 +8,12 @@ import { StatusBadge } from "@/components/status-badge";
 import { ChevronLeft } from "lucide-react";
 
 export const Route = createFileRoute("/traces/$traceId")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:traces")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Trace — Pulse" }] }),
   component: TracePage,
 });

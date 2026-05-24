@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { ChartCard } from "@/components/chart-card";
@@ -6,10 +7,16 @@ import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import { generateMLInsights, generateTimeSeries } from "@/lib/mock-data";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { Sparkles, TrendingUp, AlertOctagon, FileText } from "lucide-react";
+import { Sparkles, TrendingUp, OctagonAlert as AlertOctagon, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/ml-insights")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:mlops")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({
     meta: [
       { title: "ML Insights — Pulse" },

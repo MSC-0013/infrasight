@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,6 +22,12 @@ import { useAuthStore, ROLE_LABEL, ROLE_TONE } from "@/store/auth-store";
 import { generateMembers, type Member } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/settings")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("manage:settings")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({
     meta: [
       { title: "Settings — Pulse" },

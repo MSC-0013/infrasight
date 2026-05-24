@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, Navigate } from "@tanstack/react-router";
 import { useMemo, useEffect, useState } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis,
@@ -36,6 +36,11 @@ import { ChevronRight, RefreshCw, ListFilter as Filter, Download } from "lucide-
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
+  beforeLoad: () => {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+  },
+  
   head: () => ({
     meta: [
       { title: "Dashboard — Pulse" },

@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { PageHeader } from "@/components/page-header";
@@ -8,6 +9,12 @@ import { ChartCard } from "@/components/chart-card";
 import { generateWorkers, generateTimeSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/workers")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("view:workers")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({
     meta: [
       { title: "Worker Monitoring — Pulse" },

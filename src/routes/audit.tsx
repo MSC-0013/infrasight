@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth-store";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { generateAuditLogs } from "@/lib/mock-data";
@@ -6,6 +7,12 @@ import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "@/lib/format";
 
 export const Route = createFileRoute("/audit")({
+  beforeLoad: () => {
+    const { isAuthenticated, can } = useAuthStore.getState();
+    if (!isAuthenticated) throw redirect({ to: "/login" });
+    if (!can("manage:org")) throw redirect({ to: "/dashboard" });
+  },
+  
   head: () => ({ meta: [{ title: "Audit log — Pulse" }] }),
   component: AuditPage,
 });

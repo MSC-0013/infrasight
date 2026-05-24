@@ -6,7 +6,7 @@ import appCss from "../styles.css?url";
 
 const queryClient = new QueryClient();
 
-const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/welcome"];
+const AUTH_ROUTES = ["/", "/login", "/signup", "/forgot-password", "/welcome"];
 
 function NotFoundComponent() {
   return (
@@ -15,7 +15,7 @@ function NotFoundComponent() {
         <p className="text-xs font-mono text-muted-foreground">ERR_NOT_FOUND</p>
         <h1 className="mt-2 text-5xl font-semibold tracking-tight">404</h1>
         <p className="mt-2 text-sm text-muted-foreground">The page you requested doesn't exist.</p>
-        <Link to="/" className="mt-6 inline-flex items-center rounded-md border border-border bg-card px-4 py-2 text-sm hover:bg-accent">
+        <Link to="/dashboard" className="mt-6 inline-flex items-center rounded-md border border-border bg-card px-4 py-2 text-sm hover:bg-accent">
           Back to dashboard
         </Link>
       </div>

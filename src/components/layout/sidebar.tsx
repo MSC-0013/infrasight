@@ -11,7 +11,7 @@ const SECTIONS: readonly NavSection[] = [
   {
     label: "Overview",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, perm: "view:dashboard" },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, perm: "view:dashboard" },
       { to: "/topology", label: "Topology", icon: Network, perm: "view:topology" },
       { to: "/services", label: "Service Health", icon: Activity, perm: "view:services" },
     ],
@@ -67,7 +67,7 @@ export function Sidebar() {
       )}
     >
       <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3">
-        <Link to="/" className="flex items-center gap-2 overflow-hidden">
+        <Link to="/dashboard" className="flex items-center gap-2 overflow-hidden">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground">
             <Activity className="h-3.5 w-3.5" strokeWidth={2.5} />
           </div>

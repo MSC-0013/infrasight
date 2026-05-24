@@ -28,6 +28,7 @@ import { Route as HeatmapsRouteImport } from './routes/heatmaps'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DeploymentsRouteImport } from './routes/deployments'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as ApiRouteImport } from './routes/api'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -132,6 +133,11 @@ const DeploymentsRoute = DeploymentsRouteImport.update({
   path: '/deployments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
   '/audit': typeof AuditRoute
+  '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
   '/audit': typeof AuditRoute
+  '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/api': typeof ApiRoute
   '/audit': typeof AuditRoute
+  '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
   '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/api'
     | '/audit'
+    | '/dashboard'
     | '/deployments'
     | '/events'
     | '/forgot-password'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/api'
     | '/audit'
+    | '/dashboard'
     | '/deployments'
     | '/events'
     | '/forgot-password'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/api'
     | '/audit'
+    | '/dashboard'
     | '/deployments'
     | '/events'
     | '/forgot-password'
@@ -357,6 +369,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   ApiRoute: typeof ApiRoute
   AuditRoute: typeof AuditRoute
+  DashboardRoute: typeof DashboardRoute
   DeploymentsRoute: typeof DeploymentsRoute
   EventsRoute: typeof EventsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -513,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeploymentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/audit': {
       id: '/audit'
       path: '/audit'
@@ -613,6 +633,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   ApiRoute: ApiRoute,
   AuditRoute: AuditRoute,
+  DashboardRoute: DashboardRoute,
   DeploymentsRoute: DeploymentsRoute,
   EventsRoute: EventsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

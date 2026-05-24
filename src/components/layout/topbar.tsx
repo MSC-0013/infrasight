@@ -30,7 +30,7 @@ export function Topbar() {
 
   const handleSignOut = () => {
     signOut();
-    navigate({ to: "/login" });
+    navigate({ to: "/" });
   };
 
   return (

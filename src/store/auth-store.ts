@@ -11,7 +11,6 @@ export interface AuthUser {
   role: Role;
 }
 
-// Permission matrix — keep in sync with sidebar filter & route guards.
 export const PERMISSIONS: Record<Role, string[]> = {
   super_admin: ["*"],
   admin: [
@@ -38,6 +37,14 @@ export const PERMISSIONS: Record<Role, string[]> = {
   ],
 };
 
+export const DEMO_ACCOUNTS: Record<string, { password: string; role: Role; name: string; avatar: string }> = {
+  "admin@pulse.io": { password: "admin123", role: "super_admin", name: "Alex Chen", avatar: "AC" },
+  "ops@pulse.io":   { password: "ops123",   role: "admin",       name: "Jordan Park", avatar: "JP" },
+  "sre@pulse.io":   { password: "sre123",   role: "sre",         name: "Priya Sharma", avatar: "PS" },
+  "dev@pulse.io":   { password: "dev123",   role: "developer",   name: "Sam Engineer", avatar: "SE" },
+  "viewer@pulse.io":{ password: "viewer123",role: "viewer",      name: "Mia Analyst", avatar: "MA" },
+};
+
 interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -47,30 +54,27 @@ interface AuthState {
   can: (perm: string) => boolean;
 }
 
-const defaultUser: AuthUser = {
-  id: "usr_demo",
-  name: "Sam Engineer",
-  email: "sam@pulse.io",
-  avatar: "SE",
-  role: "admin",
-};
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: defaultUser,
-      isAuthenticated: true,
-      signIn: (email, opts) =>
+      user: null,
+      isAuthenticated: false,
+      signIn: (email, opts) => {
+        const demo = DEMO_ACCOUNTS[email];
+        const role = opts?.role ?? demo?.role ?? "viewer";
+        const name = opts?.name ?? demo?.name ?? email.split("@")[0].replace(/\b\w/g, (c) => c.toUpperCase());
+        const avatar = demo?.avatar ?? name.slice(0, 2).toUpperCase();
         set({
           isAuthenticated: true,
           user: {
             id: "usr_" + Math.random().toString(36).slice(2, 8),
-            name: opts?.name ?? email.split("@")[0].replace(/\b\w/g, (c) => c.toUpperCase()),
+            name,
             email,
-            avatar: (opts?.name ?? email).slice(0, 2).toUpperCase(),
-            role: opts?.role ?? "admin",
+            avatar,
+            role,
           },
-        }),
+        });
+      },
       signOut: () => set({ isAuthenticated: false, user: null }),
       setRole: (role) => {
         const u = get().user;

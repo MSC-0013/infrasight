@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Copy, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore, ROLE_LABEL, ROLE_TONE } from "@/store/auth-store";
+import { generateMembers, type Member } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -82,26 +84,7 @@ function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="rbac" className="mt-4">
-            <Card title="Roles & Permissions">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="h-8 text-[10px] font-mono uppercase">Member</TableHead>
-                    <TableHead className="h-8 text-[10px] font-mono uppercase">Role</TableHead>
-                    <TableHead className="h-8 text-[10px] font-mono uppercase">Last active</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[["Sam Engineer", "admin", "1m ago"], ["Riley Ops", "developer", "12m ago"], ["Jordan SRE", "viewer", "2h ago"]].map(([m, r, l]) => (
-                    <TableRow key={m} className="border-border text-xs">
-                      <TableCell className="py-2 font-medium">{m}</TableCell>
-                      <TableCell className="py-2"><StatusBadge tone="info" dot={false}>{r}</StatusBadge></TableCell>
-                      <TableCell className="py-2 font-mono text-[11px] text-muted-foreground">{l}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+            <RBACSection />
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">
@@ -114,8 +97,10 @@ function SettingsPage() {
 }
 
 function ProfileSection() {
-  const [name, setName] = useState("Sam Engineer");
-  const [email, setEmail] = useState("sam@pulse.io");
+  const user = useAuthStore((s) => s.user);
+  const setRole = useAuthStore((s) => s.setRole);
+  const [name, setName] = useState(user?.name ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
   const [tz, setTz] = useState("UTC");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -134,9 +119,37 @@ function ProfileSection() {
 
   return (
     <Card title="Profile" description="Your personal information">
+      <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-base font-semibold uppercase text-primary">
+          {user?.avatar ?? "—"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">{user?.name ?? "Guest"}</span>
+            {user && <StatusBadge tone={ROLE_TONE[user.role]}>{ROLE_LABEL[user.role]}</StatusBadge>}
+          </div>
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{user?.email}</p>
+        </div>
+      </div>
+
       <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 max-w-md text-xs" /></Field>
       <Field label="Email"><Input value={email} onChange={(e) => setEmail(e.target.value)} className="h-8 max-w-md font-mono text-xs" /></Field>
       <Field label="Timezone"><Input value={tz} onChange={(e) => setTz(e.target.value)} className="h-8 max-w-md font-mono text-xs" /></Field>
+
+      <Field label="Role (demo)">
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(ROLE_LABEL) as Array<keyof typeof ROLE_LABEL>).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRole(r)}
+              className={`rounded border px-2.5 py-1 text-xs ${user?.role === r ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}
+            >
+              {ROLE_LABEL[r]}
+            </button>
+          ))}
+        </div>
+      </Field>
+
       <div className="flex items-center justify-end gap-2">
         {dirty && <span className="text-[11px] font-mono text-warning">Unsaved changes</span>}
         <Button size="sm" className="h-7 gap-1.5 text-xs" disabled={!dirty || saving} onClick={save}>
@@ -430,6 +443,44 @@ function NotificationsSection() {
           />
         </div>
       ))}
+    </Card>
+  );
+}
+
+function RBACSection() {
+  const members = useMemo(() => generateMembers(), []);
+
+  const ROLE_TONE_MAP: Record<string, "info" | "success" | "warning" | "error" | "critical"> = {
+    admin: "error",
+    engineer: "info",
+    viewer: "success",
+    analyst: "warning",
+  };
+
+  return (
+    <Card title="Roles & Permissions" description={`${members.length} members in this workspace`}>
+      <Table>
+        <TableHeader>
+          <TableRow className="border-border hover:bg-transparent">
+            <TableHead className="h-8 text-[10px] font-mono uppercase">Member</TableHead>
+            <TableHead className="h-8 text-[10px] font-mono uppercase">Email</TableHead>
+            <TableHead className="h-8 text-[10px] font-mono uppercase">Role</TableHead>
+            <TableHead className="h-8 text-[10px] font-mono uppercase">Team</TableHead>
+            <TableHead className="h-8 text-[10px] font-mono uppercase">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {members.map((m) => (
+            <TableRow key={m.id} className="border-border text-xs">
+              <TableCell className="py-2 font-medium">{m.name}</TableCell>
+              <TableCell className="py-2 font-mono text-[11px] text-muted-foreground">{m.email}</TableCell>
+              <TableCell className="py-2"><StatusBadge tone={ROLE_TONE_MAP[m.role] ?? "info"}>{m.role}</StatusBadge></TableCell>
+              <TableCell className="py-2 text-[11px]">{m.team}</TableCell>
+              <TableCell className="py-2"><StatusBadge tone={m.status === "active" ? "success" : m.status === "invited" ? "warning" : "error"}>{m.status}</StatusBadge></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Card>
   );
 }

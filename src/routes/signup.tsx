@@ -27,7 +27,7 @@ function SignupPage() {
     }
     signIn(email, { name: name || undefined, role: "admin" });
     toast.success(`Workspace ${org} created`);
-    navigate({ to: "/" });
+    navigate({ to: "/dashboard" });
   };
 
   return (

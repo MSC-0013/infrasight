@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Activity, BarChart3, Bell, GitBranch, Network, Workflow, ShieldCheck, Sparkles, ArrowRight, Github, Check } from "lucide-react";
+import { Activity, ChartBar as BarChart3, Bell, GitBranch, Network, Workflow, ShieldCheck, Sparkles, ArrowRight, Github, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/welcome")({
@@ -52,7 +52,7 @@ function WelcomePage() {
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/login"><Button size="sm" variant="ghost" className="h-7 text-xs">Sign in</Button></Link>
-            <Link to="/"><Button size="sm" className="h-7 gap-1.5 text-xs">Open console <ArrowRight className="h-3 w-3" /></Button></Link>
+            <Link to="/dashboard"><Button size="sm" className="h-7 gap-1.5 text-xs">Open console <ArrowRight className="h-3 w-3" /></Button></Link>
           </div>
         </div>
       </header>
@@ -72,7 +72,7 @@ function WelcomePage() {
             engineering-grade console. Designed like Grafana, Datadog and Sentry — without the bloat.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link to="/"><Button className="h-9 gap-2">Launch console <ArrowRight className="h-4 w-4" /></Button></Link>
+            <Link to="/dashboard"><Button className="h-9 gap-2">Launch console <ArrowRight className="h-4 w-4" /></Button></Link>
             <Link to="/signup"><Button variant="outline" className="h-9">Create account</Button></Link>
             <a href="https://github.com" target="_blank" rel="noreferrer"><Button variant="ghost" className="h-9 gap-2"><Github className="h-4 w-4" />View source</Button></a>
           </div>
@@ -218,7 +218,7 @@ function WelcomePage() {
           <h2 className="text-3xl font-semibold tracking-tight">Ship observability your engineers will actually use.</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">Launch the live console — no signup required for the demo workspace.</p>
           <div className="mt-6 flex justify-center gap-3">
-            <Link to="/"><Button className="h-9 gap-2">Open console <ArrowRight className="h-4 w-4" /></Button></Link>
+            <Link to="/dashboard"><Button className="h-9 gap-2">Open console <ArrowRight className="h-4 w-4" /></Button></Link>
             <Link to="/signup"><Button variant="outline" className="h-9">Create workspace</Button></Link>
           </div>
         </div>

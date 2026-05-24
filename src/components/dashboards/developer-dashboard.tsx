@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
 import { ChartCard } from "@/components/chart-card";
@@ -10,18 +10,17 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Workflow, FileText, Activity, ChevronRight,
+  Workflow, FileText, Activity,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import {
-  fetchDeveloperMetrics, fetchServices, fetchIncidents, fetchRecentEvents,
-} from "@/lib/supabase-queries";
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip,
 } from "recharts";
 import {
+  generateServices, generateIncidents, generateEvents,
   generateLatencySeries, generateThroughputSeries, generateTimeSeries,
+  type ServiceHealth, type AppEvent,
 } from "@/lib/mock-data";
 import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -31,30 +30,22 @@ const STATUS_TONE: Record<string, "success" | "error" | "warning" | "info"> = {
 };
 
 export function DeveloperDashboard() {
-  const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof fetchDeveloperMetrics>> | null>(null);
-  const [services, setServices] = useState<any[]>([]);
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const services = useMemo(() => generateServices(), []);
+  const incidents = useMemo(() => generateIncidents(), []);
+  const events = useMemo(() => generateEvents(20), []);
+  const throughput = useMemo(() => generateThroughputSeries(40), []);
+  const latency = useMemo(() => generateLatencySeries(40), []);
 
-  const throughput = generateThroughputSeries(40);
-  const latency = generateLatencySeries(40);
+  const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      const [m, s, i, e] = await Promise.all([
-        fetchDeveloperMetrics(),
-        fetchServices(),
-        fetchIncidents(),
-        fetchRecentEvents(20),
-      ]);
-      setMetrics(m);
-      setServices(s);
-      setIncidents(i);
-      setEvents(e);
-    }
-    load();
-  }, []);
+  const serviceCount = services.length;
+  const openIssues = incidents.filter(i => i.status === "investigating").length;
+  const avgP95 = services.length
+    ? Math.round(services.reduce((a, s) => a + s.p95Ms, 0) / services.length)
+    : 0;
+  const avgErrorRate = services.length
+    ? +(services.reduce((a, s) => a + s.errorRate, 0) / services.length).toFixed(2)
+    : 0;
 
   return (
     <div className="flex flex-col">
@@ -71,10 +62,10 @@ export function DeveloperDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Your services" value={metrics?.serviceCount ?? "—"} series={generateTimeSeries(20, 6, 1)} trend={0} status="info" />
-        <MetricCard label="Open issues" value={metrics?.openIssues ?? "—"} series={generateTimeSeries(20, 2, 1)} trend={-12} trendInverted status="warning" />
-        <MetricCard label="p95 latency" value={`${metrics?.avgP95 ?? 0}ms`} series={generateTimeSeries(20, 142, 20)} trend={-3.1} trendInverted status="info" />
-        <MetricCard label="Error rate" value={`${metrics?.avgErrorRate ?? 0}%`} series={generateTimeSeries(20, 1.24, 0.4)} trend={-8.2} trendInverted status="success" />
+        <MetricCard label="Your services" value={serviceCount} series={generateTimeSeries(20, 6, 1)} trend={0} status="info" />
+        <MetricCard label="Open issues" value={openIssues} series={generateTimeSeries(20, 2, 1)} trend={-12} trendInverted status="warning" />
+        <MetricCard label="p95 latency" value={`${avgP95}ms`} series={generateTimeSeries(20, 142, 20)} trend={-3.1} trendInverted status="info" />
+        <MetricCard label="Error rate" value={`${avgErrorRate}%`} series={generateTimeSeries(20, 1.24, 0.4)} trend={-8.2} trendInverted status="success" />
         <MetricCard label="Events / sec" value="847" series={generateTimeSeries(20, 847, 80)} trend={4.2} status="info" variant="area" />
         <MetricCard label="Queue lag" value="412ms" series={generateTimeSeries(20, 412, 100)} trend={9.8} trendInverted status="warning" />
         <MetricCard label="Active workers" value="92" series={generateTimeSeries(20, 92, 8)} trend={1.2} status="success" />
@@ -150,8 +141,8 @@ export function DeveloperDashboard() {
                   <TableRow key={s.id} className="cursor-pointer border-border text-xs hover:bg-accent/40">
                     <TableCell className="py-1.5 font-mono text-[11px]">{s.name}</TableCell>
                     <TableCell className="py-1.5"><StatusBadge tone={s.status === "healthy" ? "success" : s.status === "degraded" ? "warning" : "error"}>{s.status}</StatusBadge></TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{s.p95_ms}ms</TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{s.error_rate}%</TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{s.p95Ms}ms</TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{s.errorRate}%</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -180,9 +171,9 @@ export function DeveloperDashboard() {
                 {events.slice(0, 15).map((e) => (
                   <TableRow key={e.id} className="cursor-pointer border-border text-xs hover:bg-accent/40" onClick={() => setSelectedEvent(e)}>
                     <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{format(new Date(e.timestamp), "HH:mm:ss")}</TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px]">{e.event_type}</TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px]">{e.eventType}</TableCell>
                     <TableCell className="py-1.5"><StatusBadge tone={STATUS_TONE[e.status] ?? "info"}>{e.status}</StatusBadge></TableCell>
-                    <TableCell className={cn("py-1.5 text-right font-mono text-[11px] tabular-nums", e.latency_ms > 300 && "text-warning")}>{e.latency_ms}ms</TableCell>
+                    <TableCell className={cn("py-1.5 text-right font-mono text-[11px] tabular-nums", e.latencyMs > 300 && "text-warning")}>{e.latencyMs}ms</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -198,7 +189,7 @@ export function DeveloperDashboard() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 font-mono text-sm">
-                  {selectedEvent.event_type}
+                  {selectedEvent.eventType}
                   <StatusBadge tone={STATUS_TONE[selectedEvent.status] ?? "info"}>{selectedEvent.status}</StatusBadge>
                 </DialogTitle>
                 <DialogDescription className="font-mono text-[11px]">
@@ -214,7 +205,7 @@ export function DeveloperDashboard() {
                   <pre className="max-h-64 overflow-auto rounded-md bg-background p-3 font-mono text-xs">{JSON.stringify(selectedEvent.payload, null, 2)}</pre>
                 </TabsContent>
                 <TabsContent value="context">
-                  <pre className="max-h-64 overflow-auto rounded-md bg-background p-3 font-mono text-xs">{JSON.stringify({ queue: selectedEvent.queue, worker: selectedEvent.worker, retries: selectedEvent.retries, latency_ms: selectedEvent.latency_ms }, null, 2)}</pre>
+                  <pre className="max-h-64 overflow-auto rounded-md bg-background p-3 font-mono text-xs">{JSON.stringify({ queue: selectedEvent.queue, worker: selectedEvent.worker, retries: selectedEvent.retries, latencyMs: selectedEvent.latencyMs }, null, 2)}</pre>
                 </TabsContent>
               </Tabs>
             </>

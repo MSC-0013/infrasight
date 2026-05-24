@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -9,39 +9,23 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  ShieldCheck, Settings, Bell, Users, KeyRound, Building2, Plus,
+  Settings, Bell, Users, KeyRound, Plus,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
-  fetchMembers, fetchApiKeys, fetchActiveAlerts, fetchDashboardMetrics,
-} from "@/lib/supabase-queries";
-import { generateTimeSeries } from "@/lib/mock-data";
+  generateMembers, generateApiKeys, generateAlerts,
+  generateTimeSeries, type Member, type ApiKey, type Alert,
+} from "@/lib/mock-data";
 import { formatDistanceToNow } from "date-fns";
 
 export function AdminDashboard() {
-  const [members, setMembers] = useState<any[]>([]);
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof fetchDashboardMetrics>> | null>(null);
+  const members = useMemo(() => generateMembers(), []);
+  const apiKeys = useMemo(() => generateApiKeys(), []);
+  const alerts = useMemo(() => generateAlerts(8), []);
+
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("engineer");
-
-  useEffect(() => {
-    async function load() {
-      const [m, k, a, d] = await Promise.all([
-        fetchMembers(),
-        fetchApiKeys(),
-        fetchActiveAlerts(8),
-        fetchDashboardMetrics(),
-      ]);
-      setMembers(m);
-      setApiKeys(k);
-      setAlerts(a);
-      setMetrics(d);
-    }
-    load();
-  }, []);
 
   const activeMembers = members.filter(m => m.status === "active").length;
   const pendingInvites = members.filter(m => m.status === "invited").length;
@@ -66,10 +50,10 @@ export function AdminDashboard() {
         <MetricCard label="Pending invites" value={pendingInvites} series={generateTimeSeries(20, 3, 1)} trend={0} status="warning" />
         <MetricCard label="Active integrations" value="9" series={generateTimeSeries(20, 9, 0)} trend={0} status="success" />
         <MetricCard label="API keys" value={activeKeys} series={generateTimeSeries(20, 14, 2)} trend={1.2} status="info" />
-        <MetricCard label="Active alerts" value={metrics?.activeAlerts ?? 0} series={generateTimeSeries(20, 4, 2)} trend={0} status="warning" />
-        <MetricCard label="Open incidents" value={metrics?.openIncidents ?? 0} series={generateTimeSeries(20, 3, 1)} trend={-14} trendInverted status="info" />
-        <MetricCard label="Events / hour" value={metrics?.eventsPerHour ?? 0} series={generateTimeSeries(20, 3200, 400)} trend={2.8} status="info" variant="area" />
-        <MetricCard label="Uptime" value={`${metrics?.avgUptime ?? 99.9}%`} series={generateTimeSeries(20, 99.9, 0.008)} trend={0.01} status="success" />
+        <MetricCard label="Active alerts" value={alerts.filter(a => !a.acknowledged).length} series={generateTimeSeries(20, 4, 2)} trend={0} status="warning" />
+        <MetricCard label="Open incidents" value={3} series={generateTimeSeries(20, 3, 1)} trend={-14} trendInverted status="info" />
+        <MetricCard label="Events / hour" value="3.2k" series={generateTimeSeries(20, 3200, 400)} trend={2.8} status="info" variant="area" />
+        <MetricCard label="Uptime" value="99.9%" series={generateTimeSeries(20, 99.9, 0.008)} trend={0.01} status="success" />
       </div>
 
       {/* Members + API Keys */}
@@ -133,8 +117,8 @@ export function AdminDashboard() {
                     <TableCell className="py-1.5 font-medium">{k.name}</TableCell>
                     <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{k.prefix}…</TableCell>
                     <TableCell className="py-1.5"><StatusBadge tone={k.status === "active" ? "success" : "error"}>{k.status}</StatusBadge></TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{k.requests_24h}</TableCell>
-                    <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{k.expires_at ? formatDistanceToNow(new Date(k.expires_at), { addSuffix: true }) : "Never"}</TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px] tabular-nums">{k.requests24h}</TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px] text-muted-foreground">{k.expiresAt ? formatDistanceToNow(new Date(k.expiresAt), { addSuffix: true }) : "Never"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -149,7 +133,7 @@ export function AdminDashboard() {
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <div>
               <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2"><Bell className="h-3.5 w-3.5 text-warning" />Active Alerts</h3>
-              <p className="text-xs text-muted-foreground">{alerts.length} unacknowledged</p>
+              <p className="text-xs text-muted-foreground">{alerts.filter(a => !a.acknowledged).length} unacknowledged</p>
             </div>
             <Link to="/alerts" className="text-xs text-primary hover:underline">View all</Link>
           </div>

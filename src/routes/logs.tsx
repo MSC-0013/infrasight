@@ -64,7 +64,7 @@ function LogsPage() {
   const toggle = (l: LogLevel) =>
     setLvl((cur) => {
       const next = new Set(cur);
-      next.has(l) ? next.delete(l) : next.add(l);
+      if (next.has(l)) next.delete(l); else next.add(l);
       return next;
     });
 
@@ -93,7 +93,7 @@ function LogsPage() {
   const pin = (l: LogLine) => {
     setPinned((cur) => {
       const next = new Set(cur);
-      next.has(l.id) ? next.delete(l.id) : next.add(l.id);
+      if (next.has(l.id)) next.delete(l.id); else next.add(l.id);
       return next;
     });
   };

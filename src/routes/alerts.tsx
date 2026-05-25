@@ -73,7 +73,7 @@ function AlertsPage() {
   const toggleOne = (id: string) => {
     setChecked((cur) => {
       const next = new Set(cur);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };

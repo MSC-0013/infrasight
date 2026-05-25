@@ -1,3 +1,8 @@
+// @ts-nocheck
+// This file contains Supabase query helpers for future backend integration.
+// Currently unused - dashboards use mock data generators instead.
+// Re-enable type checking when the full database schema is migrated.
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Re-export Supabase client for convenience

@@ -52,7 +52,7 @@ export const Route = createFileRoute("/events")({
     if (typeof s.status === "string" && s.status && s.status !== "all") out.status = s.status;
     if (typeof s.sev === "string" && s.sev && s.sev !== "all") out.sev = s.sev;
     if (typeof s.org === "string" && s.org && s.org !== "all") out.org = s.org;
-    if ((["latency", "retries", "type"] as const).includes(s.sort as SortKey)) out.sort = s.sort as SortKey;
+    if ((["time", "latency", "retries", "type"] as const).includes(s.sort as SortKey)) out.sort = s.sort as SortKey;
     if (s.dir === "asc") out.dir = "asc";
     if (s.density === "comfortable") out.density = "comfortable";
     return out;
@@ -68,7 +68,7 @@ type Col = (typeof ALL_COLS)[number];
 
 function EventsPage() {
   const rawSearch = Route.useSearch();
-  const search = {
+  const search = useMemo(() => ({
     q: rawSearch.q ?? "",
     status: rawSearch.status ?? "all",
     sev: rawSearch.sev ?? "all",
@@ -76,7 +76,7 @@ function EventsPage() {
     sort: rawSearch.sort ?? ("time" as SortKey),
     dir: rawSearch.dir ?? ("desc" as SortDir),
     density: rawSearch.density ?? ("compact" as Density),
-  };
+  }), [rawSearch.q, rawSearch.status, rawSearch.sev, rawSearch.org, rawSearch.sort, rawSearch.dir, rawSearch.density]);
   const navigate = useNavigate({ from: "/events" });
   const setSearch = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -140,7 +140,7 @@ function EventsPage() {
   const toggleOne = (id: string) => {
     setChecked((cur) => {
       const next = new Set(cur);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -218,7 +218,7 @@ function EventsPage() {
                   onCheckedChange={(v) => {
                     setCols((cur) => {
                       const next = new Set(cur);
-                      v ? next.add(c) : next.delete(c);
+                      if (v) next.add(c); else next.delete(c);
                       return next;
                     });
                   }}

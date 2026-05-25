@@ -61,9 +61,9 @@ serve(async (req) => {
     const assignments = assignmentsRes.data ?? [];
     const categories = categoriesRes.data ?? [];
 
-    const categoryMap = new Map(categories.map((c: any) => [c.id, c.name]));
+    const categoryMap = new Map(categories.map((c: { id: string; name: string }) => [c.id, c.name]));
     const assignmentMap = new Map(
-      assignments.map((a: any) => [a.asset_id, a.employees?.name ?? "Unknown"])
+      assignments.map((a: { asset_id: string; employees?: { name: string } }) => [a.asset_id, a.employees?.name ?? "Unknown"])
     );
 
     // Build context
@@ -77,9 +77,9 @@ serve(async (req) => {
     context += "\n## Employees\n\n";
     for (const e of employees) {
       const assignedAssets = assignments
-        .filter((a: any) => a.employee_id === e.id)
-        .map((a: any) => {
-          const asset = assets.find((as: any) => as.id === a.asset_id);
+        .filter((a: { employee_id: string }) => a.employee_id === e.id)
+        .map((a: { asset_id: string }) => {
+          const asset = assets.find((as: { id: string }) => as.id === a.asset_id);
           return asset?.name ?? "Unknown";
         });
       context += `- **${e.name}** | Department: ${e.department ?? "N/A"} | Email: ${e.email ?? "N/A"} | Assets assigned: ${assignedAssets.length > 0 ? assignedAssets.join(", ") : "None"}\n`;

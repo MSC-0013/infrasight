@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkersRouteImport } from './routes/workers'
-import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as Welcome1RouteImport } from './routes/welcome1'
 import { Route as TracesRouteImport } from './routes/traces'
 import { Route as TopologyRouteImport } from './routes/topology'
 import { Route as SlosRouteImport } from './routes/slos'
@@ -43,9 +43,9 @@ const WorkersRoute = WorkersRouteImport.update({
   path: '/workers',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WelcomeRoute = WelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
+const Welcome1Route = Welcome1RouteImport.update({
+  id: '/welcome1',
+  path: '/welcome1',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TracesRoute = TracesRouteImport.update({
@@ -203,7 +203,7 @@ export interface FileRoutesByFullPath {
   '/slos': typeof SlosRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
-  '/welcome': typeof WelcomeRoute
+  '/welcome1': typeof Welcome1Route
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/services/$serviceName': typeof ServicesServiceNameRoute
@@ -233,7 +233,7 @@ export interface FileRoutesByTo {
   '/slos': typeof SlosRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
-  '/welcome': typeof WelcomeRoute
+  '/welcome1': typeof Welcome1Route
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/services/$serviceName': typeof ServicesServiceNameRoute
@@ -264,7 +264,7 @@ export interface FileRoutesById {
   '/slos': typeof SlosRoute
   '/topology': typeof TopologyRoute
   '/traces': typeof TracesRouteWithChildren
-  '/welcome': typeof WelcomeRoute
+  '/welcome1': typeof Welcome1Route
   '/workers': typeof WorkersRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/services/$serviceName': typeof ServicesServiceNameRoute
@@ -296,7 +296,7 @@ export interface FileRouteTypes {
     | '/slos'
     | '/topology'
     | '/traces'
-    | '/welcome'
+    | '/welcome1'
     | '/workers'
     | '/incidents/$incidentId'
     | '/services/$serviceName'
@@ -326,7 +326,7 @@ export interface FileRouteTypes {
     | '/slos'
     | '/topology'
     | '/traces'
-    | '/welcome'
+    | '/welcome1'
     | '/workers'
     | '/incidents/$incidentId'
     | '/services/$serviceName'
@@ -356,7 +356,7 @@ export interface FileRouteTypes {
     | '/slos'
     | '/topology'
     | '/traces'
-    | '/welcome'
+    | '/welcome1'
     | '/workers'
     | '/incidents/$incidentId'
     | '/services/$serviceName'
@@ -387,7 +387,7 @@ export interface RootRouteChildren {
   SlosRoute: typeof SlosRoute
   TopologyRoute: typeof TopologyRoute
   TracesRoute: typeof TracesRouteWithChildren
-  WelcomeRoute: typeof WelcomeRoute
+  Welcome1Route: typeof Welcome1Route
   WorkersRoute: typeof WorkersRoute
 }
 
@@ -400,11 +400,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/welcome': {
-      id: '/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof WelcomeRouteImport
+    '/welcome1': {
+      id: '/welcome1'
+      path: '/welcome1'
+      fullPath: '/welcome1'
+      preLoaderRoute: typeof Welcome1RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/traces': {
@@ -651,7 +651,7 @@ const rootRouteChildren: RootRouteChildren = {
   SlosRoute: SlosRoute,
   TopologyRoute: TopologyRoute,
   TracesRoute: TracesRouteWithChildren,
-  WelcomeRoute: WelcomeRoute,
+  Welcome1Route: Welcome1Route,
   WorkersRoute: WorkersRoute,
 }
 export const routeTree = rootRouteImport

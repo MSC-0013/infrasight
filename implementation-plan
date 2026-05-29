@@ -1,0 +1,1353 @@
+# 🏗️ InfraSight / Pulse — Production Backend Architecture Plan
+
+> **Stack:** Node.js 22 · TypeScript 5 · Express/Fastify · PostgreSQL 16 · Redis 7 · Prisma ORM · OpenAI · WebSocket (ws) · BullMQ · Docker · Zod
+
+---
+
+## Overview
+
+This document defines the **complete production-grade backend** that mirrors every feature of the Pulse frontend. The backend is a standalone monorepo package (`/backend`) placed **beside** the existing frontend. No existing frontend files are touched.
+
+```
+infrasight/
+├── src/                  ← existing frontend (untouched)
+├── backend/              ← NEW: entire backend lives here
+├── package.json          ← frontend
+└── ...
+```
+
+---
+
+## Tech Stack Decisions
+
+| Layer | Choice | Reason |
+|---|---|---|
+| Runtime | Node.js 22 LTS | ES modules, native fetch, top performance |
+| Language | TypeScript 5 strict | Full type-safety end-to-end |
+| Framework | **Fastify 5** | 3× faster than Express, built-in schema validation |
+| ORM | **Prisma 5** | Type-safe queries, migrations, excellent Postgres support |
+| Database | **PostgreSQL 16** | JSONB for payloads, TimescaleDB extension for time-series |
+| Cache/Pub-Sub | **Redis 7** | Sessions, rate limiting, WebSocket pub-sub, BullMQ |
+| Queue Engine | **BullMQ** | Production-grade job queues backed by Redis |
+| AI | **OpenAI SDK + LangChain** | GPT-4o for anomaly detection, RCA, log analysis |
+| Auth | **JWT (RS256) + Refresh tokens** | Stateless, scalable, stored in httpOnly cookies |
+| Realtime | **WebSocket (ws) + Redis pub-sub** | Live metrics, event streams, alerts |
+| Validation | **Zod** | Runtime schema validation for all DTOs |
+| Email | **Resend** | Transactional emails (password reset, invites) |
+| Logging | **Pino** | Structured JSON logging |
+| Testing | **Vitest + Supertest** | Unit + integration tests |
+| Containerization | **Docker + docker-compose** | Local dev + production parity |
+
+---
+
+## Root Folder Structure
+
+```
+backend/
+├── src/
+│   ├── modules/                  ← one folder per domain module
+│   │   ├── auth/
+│   │   ├── users/
+│   │   ├── organizations/
+│   │   ├── events/
+│   │   ├── traces/
+│   │   ├── logs/
+│   │   ├── queues/
+│   │   ├── workers/
+│   │   ├── incidents/
+│   │   ├── alerts/
+│   │   ├── deployments/
+│   │   ├── slos/
+│   │   ├── analytics/
+│   │   ├── mlops/
+│   │   ├── services/
+│   │   ├── topology/
+│   │   ├── audit/
+│   │   ├── settings/
+│   │   ├── notifications/
+│   │   └── ai/
+│   ├── core/                     ← shared infrastructure
+│   │   ├── config/
+│   │   ├── database/
+│   │   ├── redis/
+│   │   ├── websocket/
+│   │   ├── queue/
+│   │   ├── middleware/
+│   │   ├── errors/
+│   │   └── utils/
+│   ├── prisma/                   ← ORM
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── types/                    ← global TypeScript types
+│   │   └── index.ts
+│   ├── app.ts                    ← Fastify app factory
+│   └── server.ts                 ← entry point
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── docker/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## Per-Module Internal Structure (Applied to ALL 18 modules)
+
+Every single module follows the **exact same internal layout**:
+
+```
+modules/<module-name>/
+├── <module>.controller.ts    ← HTTP handlers (thin, delegates to service)
+├── <module>.service.ts       ← Business logic, orchestration
+├── <module>.repository.ts    ← All DB queries (Prisma calls only here)
+├── <module>.routes.ts        ← Route registration + middleware chain
+├── <module>.schema.ts        ← Zod schemas (validation for all DTOs)
+├── <module>.dto.ts           ← TypeScript types inferred from Zod schemas
+├── <module>.model.ts         ← Prisma model type re-exports + domain types
+└── index.ts                  ← barrel export
+```
+
+### Data Flow per Request
+
+```
+HTTP Request
+    ↓
+Route (Fastify route definition + auth middleware)
+    ↓
+Controller (parse & validate DTO via Zod)
+    ↓
+Service (business logic, calls other services if needed)
+    ↓
+Repository (Prisma query → PostgreSQL)
+    ↓
+Response DTO (serialized & returned)
+```
+
+---
+
+## Module-by-Module Breakdown
+
+---
+
+### 1. `auth/` — Authentication & Authorization
+
+```
+auth/
+├── auth.controller.ts
+├── auth.service.ts
+├── auth.repository.ts
+├── auth.routes.ts
+├── auth.schema.ts
+├── auth.dto.ts
+└── auth.model.ts
+```
+
+**Endpoints:**
+```
+POST   /api/auth/register           → register new user
+POST   /api/auth/login              → login, return access+refresh tokens
+POST   /api/auth/logout             → revoke refresh token
+POST   /api/auth/refresh            → get new access token
+POST   /api/auth/forgot-password    → send reset email via Resend
+POST   /api/auth/reset-password     → reset with token
+POST   /api/auth/verify-email       → verify email token
+GET    /api/auth/me                 → get current user profile
+POST   /api/auth/oauth/google       → Google OAuth callback
+POST   /api/auth/oauth/github       → GitHub OAuth callback
+```
+
+**DTOs:**
+```typescript
+RegisterDto    { email, password, name, organizationName? }
+LoginDto       { email, password }
+RefreshDto     { refreshToken }
+ResetDto       { token, newPassword }
+TokenResponseDto { accessToken, refreshToken, expiresIn, user }
+```
+
+**Key logic:**
+- Passwords: `bcrypt` with cost factor 12
+- Access token: RS256 JWT, 15min expiry
+- Refresh token: opaque UUID stored in Redis (7d TTL)
+- Role embedded in JWT claims: `{ sub, role, orgId, permissions }`
+- 5-role RBAC: `super_admin | admin | sre | developer | viewer`
+
+---
+
+### 2. `users/` — User Management
+
+```
+users/
+├── users.controller.ts
+├── users.service.ts
+├── users.repository.ts
+├── users.routes.ts
+├── users.schema.ts
+├── users.dto.ts
+└── users.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/users                   → list users (paginated, filtered by role/org)
+GET    /api/users/:id               → get user by id
+PATCH  /api/users/:id               → update user (name, role, avatar)
+DELETE /api/users/:id               → soft delete user
+POST   /api/users/invite            → invite user by email
+PATCH  /api/users/:id/role          → change user role (admin+ only)
+GET    /api/users/:id/activity      → user activity log
+```
+
+**DTOs:**
+```typescript
+UserDto          { id, email, name, role, orgId, createdAt, avatarUrl }
+UpdateUserDto    { name?, avatarUrl?, role? }
+InviteUserDto    { email, role }
+UserListDto      { users: UserDto[], total, page, pageSize }
+```
+
+---
+
+### 3. `organizations/` — Multi-Tenant Organizations
+
+```
+organizations/
+├── organizations.controller.ts
+├── organizations.service.ts
+├── organizations.repository.ts
+├── organizations.routes.ts
+├── organizations.schema.ts
+├── organizations.dto.ts
+└── organizations.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/organizations                → list orgs (super_admin only)
+POST   /api/organizations               → create org
+GET    /api/organizations/:id           → get org details
+PATCH  /api/organizations/:id           → update org
+DELETE /api/organizations/:id           → delete org
+GET    /api/organizations/:id/members   → list members
+POST   /api/organizations/:id/members   → add member
+DELETE /api/organizations/:id/members/:userId → remove member
+GET    /api/organizations/:id/usage     → usage stats (events, storage, etc)
+```
+
+**DTOs:**
+```typescript
+OrgDto          { id, name, slug, plan, memberCount, createdAt }
+CreateOrgDto    { name, plan: 'hobby' | 'team' | 'enterprise' }
+OrgUsageDto     { eventsToday, storageGB, activeUsers, apiCalls }
+```
+
+---
+
+### 4. `events/` — Distributed Event Stream
+
+```
+events/
+├── events.controller.ts
+├── events.service.ts
+├── events.repository.ts
+├── events.routes.ts
+├── events.schema.ts
+├── events.dto.ts
+└── events.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/events                  → list events (paginated, filterable)
+GET    /api/events/:id              → get event detail + payload
+POST   /api/events                  → ingest event (SDK/API)
+POST   /api/events/batch            → batch ingest (up to 1000)
+GET    /api/events/stream           → SSE live stream
+GET    /api/events/stats            → aggregate stats
+DELETE /api/events/:id              → delete event
+GET    /api/events/export           → export to CSV/JSON
+```
+
+**DTOs:**
+```typescript
+EventDto {
+  id, traceId, spanId, eventType, status, severity
+  organization, queue, worker, latencyMs, retries
+  payload: Record<string, unknown>
+  timestamp, processedAt, region
+}
+CreateEventDto { eventType, status, payload, queue, worker, severity }
+EventFilterDto { status?, severity?, queue?, worker?, from?, to?, page, pageSize }
+EventStatsDto  { total, successRate, avgLatency, p95, p99, errorRate }
+```
+
+**Key logic:**
+- Events stored in PostgreSQL with JSONB `payload`
+- TimescaleDB hypertable on `timestamp` column for efficient time-range queries
+- Pub-sub via Redis: every new event broadcast to `events:live` channel
+- WebSocket subscribers receive live updates
+
+---
+
+### 5. `traces/` — Distributed Tracing
+
+```
+traces/
+├── traces.controller.ts
+├── traces.service.ts
+├── traces.repository.ts
+├── traces.routes.ts
+├── traces.schema.ts
+├── traces.dto.ts
+└── traces.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/traces                  → list traces (filterable by service/status/duration)
+GET    /api/traces/:traceId         → get full trace with all spans
+POST   /api/traces                  → ingest OTLP trace batch
+GET    /api/traces/:traceId/spans   → get spans waterfall
+GET    /api/traces/stats            → p50/p95/p99, error rate, total
+GET    /api/traces/services         → list traced services
+```
+
+**DTOs:**
+```typescript
+TraceDto {
+  traceId, rootSpan, service, duration, status
+  spanCount, errorCount, timestamp
+}
+SpanDto {
+  spanId, traceId, parentSpanId, name, service
+  startTime, endTime, duration, status, tags, logs
+}
+OTLPIngestDto  { resourceSpans: OTLPSpan[] }  // OpenTelemetry format
+TraceStatsDto  { p50, p95, p99, errorRate, total, byService }
+```
+
+---
+
+### 6. `logs/` — Log Explorer
+
+```
+logs/
+├── logs.controller.ts
+├── logs.service.ts
+├── logs.repository.ts
+├── logs.routes.ts
+├── logs.schema.ts
+├── logs.dto.ts
+└── logs.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/logs                    → search logs (full-text, faceted)
+GET    /api/logs/stream             → SSE live tail
+POST   /api/logs                    → ingest log line(s)
+POST   /api/logs/batch              → batch ingest
+GET    /api/logs/facets             → available filter values (service, level, etc)
+GET    /api/logs/saved-queries      → list saved search queries
+POST   /api/logs/saved-queries      → save a query
+DELETE /api/logs/saved-queries/:id  → delete saved query
+```
+
+**DTOs:**
+```typescript
+LogEntryDto {
+  id, timestamp, level, service, message
+  traceId?, spanId?, fields: Record<string, unknown>
+}
+LogSearchDto { query?, level?, service?, from?, to?, page, pageSize }
+LogFacetsDto { levels: string[], services: string[], hosts: string[] }
+```
+
+---
+
+### 7. `queues/` — Queue Inspector
+
+```
+queues/
+├── queues.controller.ts
+├── queues.service.ts
+├── queues.repository.ts
+├── queues.routes.ts
+├── queues.schema.ts
+├── queues.dto.ts
+└── queues.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/queues                  → list all queues with health stats
+GET    /api/queues/:name            → queue detail (lag, depth, throughput)
+POST   /api/queues                  → create queue config
+PATCH  /api/queues/:name            → update queue config
+DELETE /api/queues/:name            → delete queue
+GET    /api/queues/:name/messages   → peek messages
+DELETE /api/queues/:name/dlq        → purge DLQ
+POST   /api/queues/:name/pause      → pause queue
+POST   /api/queues/:name/resume     → resume queue
+GET    /api/queues/:name/consumers  → list consumer groups
+```
+
+**DTOs:**
+```typescript
+QueueDto {
+  id, name, type, lag, depth, throughput
+  dlqSize, status, consumerCount, createdAt
+}
+QueueStatsDto  { lag, depth, throughput, dlqSize, processedToday, errorRate }
+CreateQueueDto { name, type: 'kafka'|'sqs'|'pubsub'|'redis'|'rabbitmq', config: Record }
+```
+
+---
+
+### 8. `workers/` — Worker Pool
+
+```
+workers/
+├── workers.controller.ts
+├── workers.service.ts
+├── workers.repository.ts
+├── workers.routes.ts
+├── workers.schema.ts
+├── workers.dto.ts
+└── workers.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/workers                 → list workers with health
+GET    /api/workers/:id             → worker detail
+POST   /api/workers/:id/restart     → restart worker
+POST   /api/workers/:id/drain       → graceful drain
+POST   /api/workers/scale           → scale pool up/down
+GET    /api/workers/:id/logs        → worker logs
+GET    /api/workers/metrics         → aggregate pool metrics
+```
+
+**DTOs:**
+```typescript
+WorkerDto {
+  id, name, status, queue, jobsProcessed
+  jobsFailed, cpuPercent, memMB, uptimeSeconds
+  lastHeartbeat, region
+}
+ScaleDto     { target: number, queue?: string }
+WorkerMetricsDto { online, offline, total, avgCpu, avgMem, totalJobsToday }
+```
+
+---
+
+### 9. `incidents/` — Incident Management
+
+```
+incidents/
+├── incidents.controller.ts
+├── incidents.service.ts
+├── incidents.repository.ts
+├── incidents.routes.ts
+├── incidents.schema.ts
+├── incidents.dto.ts
+└── incidents.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/incidents                    → list incidents (filter by severity/status)
+GET    /api/incidents/:id               → incident detail + timeline
+POST   /api/incidents                   → create incident
+PATCH  /api/incidents/:id               → update (status, assignee, severity)
+DELETE /api/incidents/:id               → delete
+POST   /api/incidents/:id/acknowledge   → acknowledge
+POST   /api/incidents/:id/resolve       → resolve with resolution note
+POST   /api/incidents/:id/timeline      → add timeline event
+GET    /api/incidents/:id/rca           → AI-generated RCA
+POST   /api/incidents/:id/postmortem    → create post-mortem
+```
+
+**DTOs:**
+```typescript
+IncidentDto {
+  id, title, severity, status, service
+  openedAt, resolvedAt, assignee, ttd, ttr
+  timeline: TimelineEventDto[], tags
+}
+CreateIncidentDto { title, severity, service, description, alertIds? }
+RcaDto            { summary, rootCause, timeline, aiGenerated: boolean }
+PostMortemDto     { summary, timeline, rootCause, action_items, author }
+```
+
+---
+
+### 10. `alerts/` — Alerting Engine
+
+```
+alerts/
+├── alerts.controller.ts
+├── alerts.service.ts
+├── alerts.repository.ts
+├── alerts.routes.ts
+├── alerts.schema.ts
+├── alerts.dto.ts
+└── alerts.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/alerts                  → list alerts
+GET    /api/alerts/:id              → alert detail
+POST   /api/alerts                  → create alert rule
+PATCH  /api/alerts/:id              → update rule
+DELETE /api/alerts/:id              → delete rule
+POST   /api/alerts/:id/acknowledge  → acknowledge firing alert
+POST   /api/alerts/:id/silence      → silence alert
+GET    /api/alerts/firing           → currently firing alerts
+GET    /api/alerts/history          → alert history log
+POST   /api/alerts/test             → test alert rule
+```
+
+**DTOs:**
+```typescript
+AlertDto {
+  id, name, severity, status, condition
+  service, value, threshold, firedAt, resolvedAt
+  acknowledged, silenced, acknowledgedBy
+}
+AlertRuleDto {
+  name, condition, threshold, severity, service
+  channels: ('slack'|'pagerduty'|'email'|'webhook')[]
+  cooldown, enabled
+}
+```
+
+**Key logic:**
+- Alert evaluation runs in BullMQ repeatable job every 30s
+- Sends notifications via Slack/PagerDuty webhooks
+- Redis tracks firing state to prevent duplicate notifications
+
+---
+
+### 11. `deployments/` — Deployment Intelligence
+
+```
+deployments/
+├── deployments.controller.ts
+├── deployments.service.ts
+├── deployments.repository.ts
+├── deployments.routes.ts
+├── deployments.schema.ts
+├── deployments.dto.ts
+└── deployments.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/deployments             → list deployments
+GET    /api/deployments/:id         → deployment detail
+POST   /api/deployments             → register deployment
+PATCH  /api/deployments/:id         → update status
+POST   /api/deployments/:id/rollback → trigger rollback
+GET    /api/deployments/:id/impact  → latency/error correlation
+GET    /api/deployments/compare     → diff two deployments
+GET    /api/deployments/heatmap     → deploy heatmap data
+```
+
+**DTOs:**
+```typescript
+DeploymentDto {
+  id, service, version, environment, status
+  sha, branch, triggeredBy, startedAt, completedAt
+  duration, rollback: boolean, canaryPercent
+  impactSummary: { latencyDelta, errorDelta }
+}
+CreateDeploymentDto { service, version, environment, sha, branch }
+RollbackDto         { reason, targetVersion }
+```
+
+---
+
+### 12. `slos/` — SLO Management
+
+```
+slos/
+├── slos.controller.ts
+├── slos.service.ts
+├── slos.repository.ts
+├── slos.routes.ts
+├── slos.schema.ts
+├── slos.dto.ts
+└── slos.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/slos                    → list SLOs
+GET    /api/slos/:id                → SLO detail + burn rate
+POST   /api/slos                    → create SLO
+PATCH  /api/slos/:id                → update SLO
+DELETE /api/slos/:id                → delete SLO
+GET    /api/slos/:id/burn-rate      → error budget burn rate
+GET    /api/slos/:id/history        → compliance history
+GET    /api/slos/summary            → dashboard summary (gauge data)
+```
+
+**DTOs:**
+```typescript
+SloDto {
+  id, name, service, target, window
+  current, errorBudget, burnRate, status
+  breachCount, lastBreach
+}
+CreateSloDto { name, service, target, window: '7d'|'30d'|'90d', metric }
+BurnRateDto  { rate, budget, budgetRemaining, projectedExhaustion }
+```
+
+---
+
+### 13. `analytics/` — Realtime Analytics
+
+```
+analytics/
+├── analytics.controller.ts
+├── analytics.service.ts
+├── analytics.repository.ts
+├── analytics.routes.ts
+├── analytics.schema.ts
+├── analytics.dto.ts
+└── analytics.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/analytics/throughput    → events/sec time series
+GET    /api/analytics/latency       → p50/p95/p99 time series
+GET    /api/analytics/errors        → error rate time series
+GET    /api/analytics/overview      → summary KPIs
+GET    /api/analytics/heatmap       → request heatmap by hour/day
+GET    /api/analytics/top-services  → top services by volume/error
+GET    /api/analytics/export        → export time-range data
+```
+
+**Query Params:** `from`, `to`, `interval` (1m/5m/1h/1d), `service`, `region`
+
+**Key logic:**
+- Time-series queries use TimescaleDB `time_bucket()` function
+- Results cached in Redis with TTL based on query interval
+- Streaming analytics via WebSocket for live dashboards
+
+---
+
+### 14. `mlops/` — MLOps Observability
+
+```
+mlops/
+├── mlops.controller.ts
+├── mlops.service.ts
+├── mlops.repository.ts
+├── mlops.routes.ts
+├── mlops.schema.ts
+├── mlops.dto.ts
+└── mlops.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/mlops/models            → list tracked models
+GET    /api/mlops/models/:id        → model detail
+POST   /api/mlops/models            → register model
+GET    /api/mlops/models/:id/drift  → drift metrics over time
+POST   /api/mlops/models/:id/drift  → ingest drift measurement
+GET    /api/mlops/models/:id/inference → inference latency stats
+POST   /api/mlops/ingest            → batch ingest predictions/features
+GET    /api/mlops/alerts            → drift alerts
+```
+
+**DTOs:**
+```typescript
+MlModelDto {
+  id, name, version, framework, status
+  lastInferenceAt, avgLatency, driftScore
+  featureCount, predictionCount
+}
+DriftMetricDto {
+  modelId, feature, psiScore, baseline, current
+  measuredAt, alert: boolean
+}
+InferenceStatsDto { p50, p95, p99, total, errorRate, avgLatency }
+```
+
+---
+
+### 15. `services/` — Service Registry & Health
+
+```
+services/
+├── services.controller.ts
+├── services.service.ts
+├── services.repository.ts
+├── services.routes.ts
+├── services.schema.ts
+├── services.dto.ts
+└── services.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/services                → list all services
+GET    /api/services/:name          → service detail + health
+POST   /api/services                → register service
+PATCH  /api/services/:name          → update service metadata
+GET    /api/services/:name/metrics  → service metrics (rps, latency, errors)
+GET    /api/services/:name/slos     → service SLOs
+GET    /api/services/:name/deploys  → service deployment history
+GET    /api/services/:name/traces   → service traces
+```
+
+**DTOs:**
+```typescript
+ServiceDto {
+  name, language, team, tier, status, version
+  rps, p95, errorRate, uptime
+  dependencies: string[], sloCount
+}
+ServiceHealthDto { status, latency, errorRate, uptime, lastDeploy }
+```
+
+---
+
+### 16. `topology/` — Service Topology Graph
+
+```
+topology/
+├── topology.controller.ts
+├── topology.service.ts
+├── topology.repository.ts
+├── topology.routes.ts
+├── topology.schema.ts
+├── topology.dto.ts
+└── topology.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/topology                → full graph (nodes + edges)
+GET    /api/topology/nodes          → nodes only
+GET    /api/topology/edges          → edges with RPS/error metrics
+POST   /api/topology/discover       → trigger auto-discovery from traces
+GET    /api/topology/history        → historical graph snapshots
+```
+
+**DTOs:**
+```typescript
+TopologyGraphDto {
+  nodes: TopologyNodeDto[]
+  edges: TopologyEdgeDto[]
+  generatedAt
+}
+TopologyNodeDto { id, label, service, rps, status, x?, y? }
+TopologyEdgeDto { from, to, rps, errorRate, p95, hasError }
+```
+
+**Key logic:**
+- Graph built from trace span parent-child relationships
+- Rebuilt every 60s via BullMQ scheduled job
+- Cached in Redis
+
+---
+
+### 17. `audit/` — Audit Log
+
+```
+audit/
+├── audit.controller.ts
+├── audit.service.ts
+├── audit.repository.ts
+├── audit.routes.ts
+├── audit.schema.ts
+├── audit.dto.ts
+└── audit.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/audit                   → list audit log (paginated, filterable)
+GET    /api/audit/:id               → single audit entry
+GET    /api/audit/export            → export to CSV
+```
+
+**DTOs:**
+```typescript
+AuditEntryDto {
+  id, action, actor, actorRole, resource, resourceId
+  before: Record, after: Record, ip, userAgent, timestamp
+}
+AuditFilterDto { actor?, action?, resource?, from?, to?, page }
+```
+
+**Key logic:**
+- Every mutation in every service calls `auditService.log()` as a side-effect
+- Written asynchronously via BullMQ to avoid blocking
+- Immutable — no UPDATE or DELETE ever runs on this table
+
+---
+
+### 18. `settings/` — Organization Settings
+
+```
+settings/
+├── settings.controller.ts
+├── settings.service.ts
+├── settings.repository.ts
+├── settings.routes.ts
+├── settings.schema.ts
+├── settings.dto.ts
+└── settings.model.ts
+```
+
+**Endpoints:**
+```
+GET    /api/settings                → get org settings
+PATCH  /api/settings                → update settings
+GET    /api/settings/api-keys       → list API keys
+POST   /api/settings/api-keys       → create API key
+DELETE /api/settings/api-keys/:id   → revoke API key
+GET    /api/settings/sso            → SSO config
+PATCH  /api/settings/sso            → update SSO (SAML)
+GET    /api/settings/notifications  → notification preferences
+PATCH  /api/settings/notifications  → update preferences
+GET    /api/settings/billing        → billing info
+```
+
+**DTOs:**
+```typescript
+ApiKeyDto    { id, name, prefix, createdAt, lastUsed, permissions }
+CreateApiKeyDto { name, permissions, expiresAt? }
+SsoConfigDto { provider, metadataUrl, entityId, enabled }
+BillingDto   { plan, seats, nextBilling, usage }
+```
+
+---
+
+### 19. `ai/` — AI Integration Module
+
+```
+ai/
+├── ai.controller.ts
+├── ai.service.ts
+├── ai.repository.ts
+├── ai.routes.ts
+├── ai.schema.ts
+├── ai.dto.ts
+└── ai.model.ts
+```
+
+**Endpoints:**
+```
+POST   /api/ai/analyze-incident     → GPT-4o RCA for incident
+POST   /api/ai/analyze-logs         → anomaly detection on log batch
+POST   /api/ai/summarize-deploy     → deployment impact summary
+POST   /api/ai/predict-slo          → SLO breach prediction
+POST   /api/ai/explain-trace        → explain trace in plain English
+GET    /api/ai/insights             → stored AI insights list
+GET    /api/ai/insights/:id         → single insight detail
+POST   /api/ai/chat                 → streaming chat (AI assistant)
+```
+
+**DTOs:**
+```typescript
+AiAnalysisRequestDto  { context: Record<string, unknown>, type: AiTaskType }
+AiAnalysisResultDto   { summary, rootCause, confidence, recommendations, model, tokens }
+AiInsightDto          { id, type, title, description, severity, service, createdAt }
+AiChatMessageDto      { role: 'user'|'assistant', content, timestamp }
+```
+
+**Key logic:**
+- GPT-4o via OpenAI SDK with streaming support
+- LangChain for prompt templates and context assembly
+- RAG: relevant logs/traces fetched from DB and included in context
+- Results stored in `ai_insights` table for future reference
+- Rate limited per org (100 calls/day on free plan)
+
+---
+
+## Core Infrastructure
+
+### `core/config/`
+
+```typescript
+// config/index.ts — loads & validates all env vars via Zod
+export const config = {
+  port: 3001,
+  database: { url: process.env.DATABASE_URL },
+  redis:    { url: process.env.REDIS_URL },
+  jwt:      { privateKey, publicKey, expiresIn: '15m' },
+  openai:   { apiKey: process.env.OPENAI_API_KEY },
+  resend:   { apiKey: process.env.RESEND_API_KEY },
+  cors:     { origins: ['http://localhost:5173'] },
+}
+```
+
+### `core/middleware/`
+
+```
+middleware/
+├── auth.middleware.ts        ← verify JWT, attach user to request
+├── rbac.middleware.ts        ← role-based access control
+├── rate-limit.middleware.ts  ← per-IP and per-org rate limiting (Redis)
+├── api-key.middleware.ts     ← API key authentication
+├── audit.middleware.ts       ← auto-log mutations to audit table
+└── error.middleware.ts       ← global error handler + Pino logging
+```
+
+### `core/websocket/`
+
+```typescript
+// WebSocket channels:
+// events:live       → new events stream
+// metrics:live      → live KPI updates (every 5s)
+// alerts:live       → firing/resolving alerts
+// incidents:live    → incident state changes
+// workers:live      → worker heartbeats
+// queues:live       → queue stats updates
+```
+
+**Architecture:**
+- Each Fastify instance connects to Redis pub-sub
+- When a service publishes an event, Redis fan-outs to all WS subscribers
+- Clients subscribe to specific channels after auth handshake
+
+### `core/queue/` — BullMQ Jobs
+
+```
+queue/
+├── alert-evaluator.job.ts      ← every 30s: evaluate alert rules
+├── topology-builder.job.ts     ← every 60s: rebuild topology graph
+├── slo-calculator.job.ts       ← every 5min: calculate SLO burn rates
+├── audit-writer.job.ts         ← async audit log writer
+├── notification-sender.job.ts  ← Slack/email/webhook notifications
+├── drift-detector.job.ts       ← MLOps drift detection
+└── data-retention.job.ts       ← daily: purge old data per retention policy
+```
+
+---
+
+## Database Schema (PostgreSQL + Prisma)
+
+### Core Tables
+
+```prisma
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  plan        Plan     @default(HOBBY)
+  createdAt   DateTime @default(now())
+  users       User[]
+  events      Event[]
+  // ... all other relations
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// TimescaleDB hypertable — partition by timestamp
+model Event {
+  id          String   @id @default(cuid())
+  traceId     String?
+  eventType   String
+  status      EventStatus
+  severity    Severity
+  organization String
+  queue       String
+  worker      String
+  latencyMs   Int
+  retries     Int
+  payload     Json
+  timestamp   DateTime
+  orgId       String
+  @@index([orgId, timestamp(sort: Desc)])
+  @@index([status, timestamp])
+}
+
+// TimescaleDB hypertable
+model Span {
+  spanId      String   @id
+  traceId     String
+  parentSpanId String?
+  name        String
+  service     String
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int      // ms
+  status      SpanStatus
+  tags        Json
+  logs        Json
+  @@index([traceId])
+  @@index([service, startTime(sort: Desc)])
+}
+
+model LogEntry {
+  id        String   @id @default(cuid())
+  timestamp DateTime
+  level     LogLevel
+  service   String
+  message   String
+  traceId   String?
+  spanId    String?
+  fields    Json
+  orgId     String
+  @@index([orgId, timestamp(sort: Desc)])
+  @@index([service, level])
+}
+
+model Queue {
+  id          String   @id @default(cuid())
+  name        String
+  type        QueueType
+  status      QueueStatus @default(HEALTHY)
+  config      Json
+  orgId       String
+  createdAt   DateTime @default(now())
+}
+
+model Worker {
+  id              String       @id @default(cuid())
+  name            String
+  status          WorkerStatus
+  queue           String
+  jobsProcessed   Int          @default(0)
+  jobsFailed      Int          @default(0)
+  cpuPercent      Float
+  memMB           Float
+  lastHeartbeat   DateTime
+  orgId           String
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  title       String
+  severity    IncidentSeverity
+  status      IncidentStatus
+  service     String
+  description String?
+  openedAt    DateTime       @default(now())
+  resolvedAt  DateTime?
+  assigneeId  String?
+  orgId       String
+  timeline    TimelineEntry[]
+  postmortem  PostMortem?
+}
+
+model Alert {
+  id          String      @id @default(cuid())
+  name        String
+  severity    AlertSeverity
+  status      AlertStatus @default(OK)
+  condition   Json
+  threshold   Float
+  service     String
+  channels    Json
+  cooldown    Int         @default(300) // seconds
+  enabled     Boolean     @default(true)
+  firedAt     DateTime?
+  resolvedAt  DateTime?
+  orgId       String
+}
+
+model Deployment {
+  id          String           @id @default(cuid())
+  service     String
+  version     String
+  environment String
+  status      DeploymentStatus
+  sha         String
+  branch      String
+  triggeredBy String
+  startedAt   DateTime
+  completedAt DateTime?
+  rollback    Boolean          @default(false)
+  orgId       String
+}
+
+model Slo {
+  id          String    @id @default(cuid())
+  name        String
+  service     String
+  target      Float     // e.g. 99.9
+  window      String    // e.g. "30d"
+  current     Float
+  errorBudget Float
+  burnRate    Float
+  status      SloStatus
+  orgId       String
+}
+
+model MlModel {
+  id          String   @id @default(cuid())
+  name        String
+  version     String
+  framework   String
+  status      MlModelStatus
+  orgId       String
+  driftMetrics DriftMetric[]
+}
+
+model AuditEntry {
+  id          String   @id @default(cuid())
+  action      String
+  actorId     String
+  actorRole   String
+  resource    String
+  resourceId  String
+  before      Json?
+  after       Json?
+  ip          String
+  userAgent   String
+  timestamp   DateTime @default(now())
+  orgId       String
+}
+
+model AiInsight {
+  id          String   @id @default(cuid())
+  type        String
+  title       String
+  description String
+  severity    String
+  service     String?
+  rawResponse Json
+  createdAt   DateTime @default(now())
+  orgId       String
+}
+```
+
+---
+
+## RBAC Permission Matrix
+
+```
+Permission              super_admin  admin  sre  developer  viewer
+─────────────────────────────────────────────────────────────────
+read:dashboard               ✓        ✓     ✓       ✓        ✓
+read:events                  ✓        ✓     ✓       ✓        ✓
+read:traces                  ✓        ✓     ✓       ✓        ✓
+read:logs                    ✓        ✓     ✓       ✓        ✓
+read:topology                ✓        ✓     ✓       ✓        ✓
+read:analytics               ✓        ✓     ✓       ✓        ✓
+manage:incidents             ✓        ✓     ✓       ✓        —
+manage:alerts                ✓        ✓     ✓       —        —
+manage:deployments           ✓        ✓     ✓       —        —
+manage:queues                ✓        —     ✓       —        —
+manage:workers               ✓        —     ✓       —        —
+manage:users                 ✓        ✓     —       —        —
+manage:billing               ✓        ✓     —       —        —
+manage:settings              ✓        ✓     —       —        —
+manage:api_keys              ✓        ✓     —       —        —
+manage:org                   ✓        —     —       —        —
+use:ai                       ✓        ✓     ✓       ✓        —
+read:audit                   ✓        ✓     —       —        —
+```
+
+---
+
+## Environment Variables (`.env.example`)
+
+```env
+# Server
+PORT=3001
+NODE_ENV=production
+
+# Database
+DATABASE_URL=postgresql://pulse:password@localhost:5432/pulse_db
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT (RS256)
+JWT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n..."
+
+# OpenAI
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o
+
+# Email
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@pulse.io
+
+# OAuth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+
+# Notifications
+SLACK_BOT_TOKEN=xoxb-...
+PAGERDUTY_API_KEY=...
+
+# Frontend
+CORS_ORIGIN=http://localhost:5173
+
+# Feature Flags
+ENABLE_AI=true
+ENABLE_TIMESCALEDB=true
+```
+
+---
+
+## Docker Setup
+
+```yaml
+# docker/docker-compose.yml
+version: '3.9'
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: pulse
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pulse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3001:3001"
+    env_file: backend/.env
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+---
+
+## API Versioning & Base URL
+
+All routes prefixed: `/api/v1/`
+
+The frontend will call:
+- Dev: `http://localhost:3001/api/v1`
+- Prod: `https://api.pulse.io/api/v1`
+
+---
+
+## Phased Implementation Plan
+
+### Phase 1 — Foundation (Week 1)
+- [ ] Project scaffold (Fastify, TypeScript, Prisma, Docker)
+- [ ] Core config, error handling, Pino logging
+- [ ] PostgreSQL connection + base migrations
+- [ ] Redis connection
+- [ ] `auth/` module — JWT, login, register, refresh
+- [ ] RBAC middleware
+- [ ] `users/` module
+- [ ] `organizations/` module
+
+### Phase 2 — Observability Core (Week 2)
+- [ ] `events/` module + batch ingest
+- [ ] `traces/` module + OTLP ingest
+- [ ] `logs/` module + full-text search
+- [ ] TimescaleDB hypertables for events, spans, logs
+- [ ] WebSocket server + Redis pub-sub channels
+- [ ] SSE endpoints for live streaming
+
+### Phase 3 — Operations Modules (Week 3)
+- [ ] `queues/` module
+- [ ] `workers/` module + heartbeat endpoint
+- [ ] `alerts/` module + BullMQ evaluator job
+- [ ] `incidents/` module + timeline
+- [ ] `deployments/` module
+- [ ] `slos/` module + burn rate calculator
+
+### Phase 4 — Intelligence Layer (Week 4)
+- [ ] `analytics/` module + TimescaleDB aggregation queries
+- [ ] `mlops/` module + drift ingestion
+- [ ] `services/` module + service registry
+- [ ] `topology/` module + graph builder job
+- [ ] `audit/` module + async writer
+- [ ] `settings/` module + API key management
+
+### Phase 5 — AI & Polish (Week 5)
+- [ ] `ai/` module — OpenAI integration
+- [ ] RCA generator for incidents
+- [ ] Log anomaly detection
+- [ ] SLO breach prediction
+- [ ] AI streaming chat endpoint
+- [ ] Notification integrations (Slack, PagerDuty, email)
+- [ ] Rate limiting, caching, performance tuning
+- [ ] Full integration test suite
+
+---
+
+## Frontend Integration Points
+
+The frontend's mock data functions in `src/lib/mock-data.ts` and `useAuthStore` will be replaced with:
+
+```typescript
+// Frontend API client (to be created at src/lib/api.ts)
+const api = createApiClient({
+  baseUrl: import.meta.env.VITE_API_URL,
+  getToken: () => useAuthStore.getState().accessToken,
+})
+
+// Example usage replacing mock data:
+const { data: events } = useQuery({
+  queryKey: ['events', filters],
+  queryFn: () => api.events.list(filters),
+})
+```
+
+> [!IMPORTANT]
+> The frontend currently uses `mock-data.ts` throughout. When wiring up the backend, we will create an `src/lib/api.ts` API client that mirrors the mock functions 1-to-1 so pages can be updated one at a time.
+
+---
+
+## Open Questions for Your Review
+
+> [!IMPORTANT]
+> **Q1: Hosting** — Where do you want to deploy the backend?
+> Options: Railway, Render, Fly.io, AWS EC2/ECS, DigitalOcean, self-hosted VPS
+
+> [!IMPORTANT]
+> **Q2: TimescaleDB** — Do you want TimescaleDB (time-series extension) or standard PostgreSQL only? TimescaleDB gives 10-100× faster time-series queries but requires a specific Docker image.
+
+> [!IMPORTANT]
+> **Q3: Auth provider** — You currently have Supabase in your deps. Do you want to use **Supabase Auth** (managed) or build a **custom JWT auth** from scratch?
+
+> [!IMPORTANT]
+> **Q4: AI budget** — OpenAI GPT-4o costs ~$0.015/1k tokens. Do you want GPT-4o, GPT-4o-mini (10× cheaper), or local model (Ollama)?
+
+> [!IMPORTANT]
+> **Q5: Phase to start** — Do you want me to start from Phase 1 (scaffold + auth) right now, or do you want to review and adjust this plan first?

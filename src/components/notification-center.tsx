@@ -1,19 +1,23 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Bell, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { generateNotifications, type Notification } from "@/lib/mock-data";
+import type { Notification } from "@/lib/mock-data";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDistanceToNow } from "@/lib/format";
+import { usePulseNotifications, useMarkNotificationRead } from "@/lib/pulse-hooks";
 
 const sevTone: Record<string, "info" | "warning" | "error" | "critical"> = {
   info: "info", warning: "warning", error: "error", critical: "critical",
 };
 
 export function NotificationCenter() {
-  const [items, setItems] = useState<Notification[]>(() => generateNotifications());
+  const { data: items = [] } = usePulseNotifications();
+  const markRead = useMarkNotificationRead();
   const unread = useMemo(() => items.filter((i) => !i.read).length, [items]);
 
-  const markAll = () => setItems((cur) => cur.map((i) => ({ ...i, read: true })));
+  const markAll = () => {
+    items.filter((i) => !i.read).forEach((i) => markRead.mutate(i.id));
+  };
 
   return (
     <Popover>
@@ -39,18 +43,22 @@ export function NotificationCenter() {
           </button>
         </div>
         <div className="thin-scrollbar max-h-[480px] divide-y divide-border overflow-auto">
-          {items.map((n) => (
-            <div key={n.id} className={"flex flex-col gap-1 px-3 py-2 " + (n.read ? "opacity-70" : "")}>
-              <div className="flex items-center gap-2">
-                <StatusBadge tone={sevTone[n.severity] ?? "info"}>{n.kind}</StatusBadge>
-                <span className="text-xs font-medium">{n.title}</span>
-                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                  {formatDistanceToNow(n.timestamp)}
-                </span>
+          {items.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">No notifications</p>
+          ) : (
+            items.map((n: Notification) => (
+              <div key={n.id} className={"flex flex-col gap-1 px-3 py-2 " + (n.read ? "opacity-70" : "")}>
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone={sevTone[n.severity] ?? "info"}>{n.kind}</StatusBadge>
+                  <span className="text-xs font-medium">{n.title}</span>
+                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                    {formatDistanceToNow(n.timestamp)}
+                  </span>
+                </div>
+                <p className="pl-1 text-[11px] text-muted-foreground">{n.body}</p>
               </div>
-              <p className="pl-1 text-[11px] text-muted-foreground">{n.body}</p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </PopoverContent>
     </Popover>

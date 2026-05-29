@@ -9,7 +9,8 @@ import { TimeRangeSelector } from "@/components/time-range-selector";
 import { RoleBadge } from "@/components/role-badge";
 import { useUIStore } from "@/store/ui-store";
 import { useAuthStore, ROLE_LABEL, type Role } from "@/store/auth-store";
-import { generateOrganizations, ENVIRONMENTS } from "@/lib/mock-data";
+import { ENVIRONMENTS } from "@/lib/mock-data";
+import { usePulseOrganizations } from "@/lib/pulse-hooks";
 import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "@tanstack/react-router";
@@ -18,7 +19,7 @@ export function Topbar() {
   const { organization, setOrganization, environment, setEnvironment } = useUIStore();
   const { user, setRole, signOut } = useAuthStore();
   const navigate = useNavigate();
-  const orgs = useMemo(() => generateOrganizations(), []);
+  const { data: orgs = [] } = usePulseOrganizations();
   const [dark, setDark] = useState(true);
 
   useEffect(() => {

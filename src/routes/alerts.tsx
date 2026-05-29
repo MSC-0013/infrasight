@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/store/auth-store";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { AlertCard } from "@/components/alert-card";
 import { EmptyState } from "@/components/ui-states";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Bell, Check, X } from "lucide-react";
-import { generateAlerts, generateTimeSeries, type Alert } from "@/lib/mock-data";
+import type { Alert } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseAlerts, useAcknowledgeAlert } from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 import { MetricCard } from "@/components/metric-card";
 import { toast } from "sonner";
 
@@ -49,9 +52,11 @@ function AlertsPage() {
   const setSearch = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
-  const [alerts, setAlerts] = useState<Alert[]>(useMemo(() => generateAlerts(24), []));
+  const { data: apiAlerts = [] } = usePulseAlerts();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  useEffect(() => { setAlerts(apiAlerts); }, [apiAlerts]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const spark = useMemo(() => generateTimeSeries(20, 12, 6), []);
+  const spark = useMemo(() => sparklineFromValue(alerts.filter((a) => !a.acknowledged).length, 20), [alerts]);
 
   const filtered = alerts.filter((a) => {
     if (search.sev !== "all" && a.severity !== search.sev) return false;
@@ -61,10 +66,14 @@ function AlertsPage() {
     return true;
   });
 
-  const ack = (id: string) =>
+  const acknowledge = useAcknowledgeAlert();
+  const ack = (id: string) => {
+    acknowledge.mutate(id);
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
+  };
 
   const bulkAck = () => {
+    checked.forEach((id) => acknowledge.mutate(id));
     setAlerts((prev) => prev.map((a) => (checked.has(a.id) ? { ...a, acknowledged: true } : a)));
     toast.success(`Acknowledged ${checked.size} alert${checked.size > 1 ? "s" : ""}`);
     setChecked(new Set());

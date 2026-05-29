@@ -8,7 +8,10 @@ import { QueueCard } from "@/components/queue-card";
 import { MetricCard } from "@/components/metric-card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JSONViewer } from "@/components/json-viewer";
-import { generateQueues, generateQueueLagSeries, generateTimeSeries, type Queue } from "@/lib/mock-data";
+import type { Queue } from "@/lib/mock-data";
+import { sparklineFromValue, queueLagFromQueues } from "@/lib/chart-helpers";
+import { usePulseQueues } from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 import { StatusBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/queues")({
@@ -28,14 +31,13 @@ export const Route = createFileRoute("/queues")({
 });
 
 function QueuesPage() {
-  const queues = useMemo(() => generateQueues(), []);
-  const lag = useMemo(() => generateQueueLagSeries(60), []);
-  const tput = useMemo(() => generateTimeSeries(60, 1200, 300), []);
-  const retries = useMemo(() => generateTimeSeries(60, 40, 20), []);
+  const { data: queues = [], isLoading, isError, error, refetch } = usePulseQueues();
+  const lag = useMemo(() => queueLagFromQueues(queues), [queues]);
+  const tput = useMemo(() => queues.map((q, i) => ({ label: `${i}`, value: q.throughput })), [queues]);
+  const retries = useMemo(() => sparklineFromValue(queues.reduce((a, q) => a + q.retries, 0), 60), [queues]);
   const [selected, setSelected] = useState<Queue | null>(null);
-  const spark = useMemo(() => generateTimeSeries(20, 100, 30), []);
-
   const totalMsgs = queues.reduce((a, q) => a + q.messages, 0);
+  const spark = useMemo(() => sparklineFromValue(totalMsgs, 20), [totalMsgs]);
   const totalDlq = queues.reduce((a, q) => a + q.dlq, 0);
   const totalThroughput = queues.reduce((a, q) => a + q.throughput, 0);
 
@@ -43,6 +45,7 @@ function QueuesPage() {
     <div className="flex flex-col">
       <PageHeader title="Queue Monitoring" description="Realtime visibility into every queue and DLQ." />
 
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
         <MetricCard label="Total queues" value={queues.length.toString()} series={spark} trend={0} status="info" />
         <MetricCard label="Messages in flight" value={totalMsgs.toLocaleString()} series={spark} trend={3.4} status="info" />
@@ -120,6 +123,7 @@ function QueuesPage() {
           )}
         </DialogContent>
       </Dialog>
+      </QueryBoundary>
     </div>
   );
 }

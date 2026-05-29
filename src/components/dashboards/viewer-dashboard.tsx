@@ -12,17 +12,18 @@ import { Link } from "@tanstack/react-router";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip,
 } from "recharts";
-import {
-  generateServices, generateAlerts, generateMLInsights,
-  generateTimeSeries, type ServiceHealth, type Alert, type MLInsight,
-} from "@/lib/mock-data";
+import type { ServiceHealth, Alert, MLInsight } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseServices, usePulseAlerts, usePulseMLInsights, usePulseMLModels, usePulseDashboardMetrics } from "@/lib/pulse-hooks";
 
 const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-primary)"];
 
 export function ViewerDashboard() {
-  const services = useMemo(() => generateServices(), []);
-  const alerts = useMemo(() => generateAlerts(6), []);
-  const mlInsights = useMemo(() => generateMLInsights(), []);
+  const { data: metrics } = usePulseDashboardMetrics();
+  const { data: services = [] } = usePulseServices();
+  const { data: alerts = [] } = usePulseAlerts();
+  const { data: mlInsights = [] } = usePulseMLInsights();
+  const { data: mlModels = [] } = usePulseMLModels();
 
   const healthyServices = services.filter(s => s.status === "healthy").length;
   const totalServices = services.length;
@@ -57,14 +58,14 @@ export function ViewerDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="System uptime" value={`${uptime}%`} series={generateTimeSeries(20, 99.9, 0.008)} trend={0.01} status="success" />
-        <MetricCard label="Healthy services" value={`${healthyServices}/${totalServices}`} series={generateTimeSeries(20, 30, 2)} trend={0.5} status="success" />
-        <MetricCard label="Active alerts" value={activeAlerts} series={generateTimeSeries(20, 4, 2)} trend={0} status="warning" />
-        <MetricCard label="Events / sec" value={eventsPerSec} series={generateTimeSeries(20, 847, 80)} trend={4.2} status="info" variant="area" />
-        <MetricCard label="API latency p95" value="142ms" series={generateTimeSeries(20, 142, 20)} trend={-3.1} trendInverted status="info" />
-        <MetricCard label="Error rate" value={`${(100 - uptime).toFixed(2)}%`} series={generateTimeSeries(20, 1.24, 0.4)} trend={-8} trendInverted status="success" />
-        <MetricCard label="ML Models" value="6" series={generateTimeSeries(20, 6, 0)} trend={0} status="info" />
-        <MetricCard label="Anomalies 24h" value={mlInsights.filter(m => m.type === "anomaly").length} series={generateTimeSeries(20, 2, 1)} trend={0} status="warning" />
+        <MetricCard label="System uptime" value={`${uptime}%`} series={sparklineFromValue(uptime, 20, 0.01)} trend={0} status="success" />
+        <MetricCard label="Healthy services" value={`${healthyServices}/${totalServices}`} series={sparklineFromValue(healthyServices, 20)} trend={0} status="success" />
+        <MetricCard label="Active alerts" value={activeAlerts} series={sparklineFromValue(activeAlerts, 20)} trend={0} status="warning" />
+        <MetricCard label="Total RPS" value={String(eventsPerSec)} series={sparklineFromValue(eventsPerSec, 20)} trend={0} status="info" variant="area" />
+        <MetricCard label="API latency p95" value={`${metrics?.avgP95 ?? 0}ms`} series={sparklineFromValue(metrics?.avgP95 ?? 0, 20)} trend={0} status="info" />
+        <MetricCard label="Error rate" value={`${metrics?.avgErrorRate ?? 0}%`} series={sparklineFromValue(metrics?.avgErrorRate ?? 0, 20)} trend={0} status="success" />
+        <MetricCard label="ML Models" value={mlModels.length} series={sparklineFromValue(mlModels.length, 20)} trend={0} status="info" />
+        <MetricCard label="Anomalies 24h" value={mlInsights.filter(m => m.type === "anomaly").length} series={sparklineFromValue(mlInsights.filter(m => m.type === "anomaly").length, 20)} trend={0} status="warning" />
       </div>
 
       {/* Service Distribution + ML Insights */}

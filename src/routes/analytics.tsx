@@ -8,10 +8,22 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { ChartCard } from "@/components/chart-card";
 import { MetricCard } from "@/components/metric-card";
+import { QueryBoundary } from "@/components/data-state";
 import {
-  generateThroughputSeries, generateLatencySeries, generateQueueLagSeries,
-  generateEventDistribution, generateOrganizations, generateWorkers, generateTimeSeries,
-} from "@/lib/mock-data";
+  sparklineFromValue,
+  throughputToChart,
+  latencyFromThroughput,
+  queueLagFromQueues,
+  distributionFromEvents,
+} from "@/lib/chart-helpers";
+import {
+  usePulseThroughput,
+  usePulseAnalyticsOverview,
+  usePulseQueues,
+  usePulseWorkers,
+  usePulseOrganizations,
+  usePulseEvents,
+} from "@/lib/pulse-hooks";
 
 export const Route = createFileRoute("/analytics")({
   beforeLoad: () => {
@@ -30,13 +42,18 @@ export const Route = createFileRoute("/analytics")({
 });
 
 function AnalyticsPage() {
-  const throughput = useMemo(() => generateThroughputSeries(80), []);
-  const latency = useMemo(() => generateLatencySeries(80), []);
-  const lag = useMemo(() => generateQueueLagSeries(80), []);
-  const dist = useMemo(() => generateEventDistribution(), []);
-  const orgs = useMemo(() => generateOrganizations(), []);
-  const workers = useMemo(() => generateWorkers(), []);
-  const spark = useMemo(() => generateTimeSeries(20, 100, 20), []);
+  const { data: overview, isLoading, isError, error, refetch } = usePulseAnalyticsOverview();
+  const { data: throughputRaw = [] } = usePulseThroughput(24);
+  const { data: queues = [] } = usePulseQueues();
+  const { data: workers = [] } = usePulseWorkers();
+  const { data: orgs = [] } = usePulseOrganizations();
+  const { data: events = [] } = usePulseEvents(500);
+
+  const throughput = useMemo(() => throughputToChart(throughputRaw), [throughputRaw]);
+  const latency = useMemo(() => latencyFromThroughput(throughputRaw), [throughputRaw]);
+  const lag = useMemo(() => queueLagFromQueues(queues), [queues]);
+  const dist = useMemo(() => distributionFromEvents(events), [events]);
+  const spark = useMemo(() => sparklineFromValue(overview?.eventsTotal ?? 0, 20), [overview?.eventsTotal]);
 
   const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-primary)"];
 
@@ -44,11 +61,12 @@ function AnalyticsPage() {
     <div className="flex flex-col">
       <PageHeader title="Analytics" description="Throughput, latency and distribution across the platform." />
 
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
-        <MetricCard label="Total events (24h)" value="14.3M" series={spark} trend={6.2} status="info" />
-        <MetricCard label="Avg latency" value="84" unit="ms" series={spark} trend={-2.4} trendInverted status="success" />
-        <MetricCard label="Peak RPS" value="2,421" series={spark} trend={11.2} status="info" />
-        <MetricCard label="SLA compliance" value="99.94" unit="%" series={spark} trend={0.05} status="success" />
+        <MetricCard label="Total events" value={String(overview?.eventsTotal ?? 0)} series={spark} trend={0} status="info" />
+        <MetricCard label="Avg latency" value={String(overview?.latencyP95 ?? 0)} unit="ms" series={sparklineFromValue(overview?.latencyP95 ?? 0, 20)} trend={0} status="success" />
+        <MetricCard label="Throughput RPS" value={String(Math.round(overview?.throughputRps ?? 0))} series={sparklineFromValue(overview?.throughputRps ?? 0, 20)} trend={0} status="info" />
+        <MetricCard label="Error rate" value={String(overview?.errorRate ?? 0)} unit="%" series={sparklineFromValue(overview?.errorRate ?? 0, 20)} trend={0} status="success" />
       </div>
 
       <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-2">
@@ -111,7 +129,7 @@ function AnalyticsPage() {
 
         <ChartCard title="Top organizations" description="By event volume">
           <Chart h={220}>
-            <BarChart data={orgs.map((o, i) => ({ name: o.slug, events: 200000 - i * 28000 + Math.round(Math.random() * 20000) }))} margin={chartMargin}>
+            <BarChart data={orgs.map((o) => ({ name: o.slug, events: events.filter((e) => e.organization === o.slug || e.organization === o.name).length }))} margin={chartMargin}>
               <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
               <XAxis dataKey="name" tick={axisTick} tickLine={false} axisLine={false} />
               <YAxis tick={axisTick} tickLine={false} axisLine={false} />
@@ -133,6 +151,7 @@ function AnalyticsPage() {
           </Chart>
         </ChartCard>
       </div>
+      </QueryBoundary>
       <div className="h-6" />
     </div>
   );

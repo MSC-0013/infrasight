@@ -962,7 +962,7 @@ export interface InvestigationSession {
 
 // ---------- Universal Search ----------
 
-export type SearchableEntityKind = "trace" | "incident" | "service" | "deployment" | "endpoint" | "log" | "alert" | "queue" | "worker" | "api_key" | "member" | "region";
+export type SearchableEntityKind = "trace" | "incident" | "service" | "deployment" | "endpoint" | "log" | "alert" | "queue" | "worker" | "api_key" | "member" | "region" | "event";
 
 export interface SearchableEntity {
   kind: SearchableEntityKind;
@@ -1150,29 +1150,18 @@ export function generateSearchIndex(): SearchableEntity[] {
 }
 
 export function buildCorrelatedContext(kind: CorrelationLink["kind"], entityId: string, entityTitle: string, service?: string): CorrelatedContext {
-  const svc = service ?? pick(SERVICES);
-  const alerts = generateAlerts(3).slice(0, Math.floor(between(0, 3))).map(a => ({ kind: "alert" as const, id: a.id, title: a.title, tone: a.severity === "critical" ? "critical" as const : a.severity === "error" ? "error" as const : "warning" as const }));
-  const traces = generateTraces(3).slice(0, Math.floor(between(1, 3))).map(t => ({ kind: "trace" as const, id: t.id, title: `${t.rootOperation} · ${t.durationMs}ms`, tone: t.status === "ok" ? "success" as const : "error" as const }));
-  const logs = generateLogs(4).slice(0, Math.floor(between(2, 4))).map(l => ({ kind: "log" as const, id: l.id, title: `${l.level}: ${l.message.slice(0, 60)}`, tone: l.level === "error" || l.level === "critical" ? "error" as const : l.level === "warn" ? "warning" as const : "neutral" as const }));
-  const queues = generateQueues().slice(0, 2).map(q => ({ kind: "event" as const, id: q.id, title: `${q.name} · ${q.messages}`, tone: q.status === "backlogged" ? "error" as const : q.status === "degraded" ? "warning" as const : "success" as const }));
-  const workers = generateWorkers().slice(0, 2).map(w => ({ kind: "event" as const, id: w.id, title: `${w.name} · ${w.status}`, tone: w.status === "online" ? "success" as const : "error" as const }));
-  const endpoints = generateApiEndpoints().slice(0, 2).map(e => ({ kind: "event" as const, id: `${e.method}:${e.path}`, title: `${e.method} ${e.path}`, tone: e.errorRate > 1 ? "error" as const : "info" as const }));
-  const deploy = generateDeployments(1)[0];
-  const incident = generateIncidents()[0];
-  const aiSummary = `Correlated anomaly: ${entityTitle} in ${svc} shows elevated latency correlated with deploy ${deploy.version} and ${alerts.length} active alerts. Probable cause: connection pool saturation after configuration change.`;
+  const svc = service ?? "unknown";
   return {
     entity: { kind, id: entityId, title: entityTitle },
     service: svc,
-    deployment: { kind: "deployment", id: deploy.id, title: `${deploy.service}@${deploy.version}`, tone: deploy.status === "succeeded" ? "success" : "error" },
-    incident: alerts.length > 0 ? { kind: "incident", id: incident.id, title: incident.title, tone: "error" } : undefined,
-    alerts,
-    traces,
-    logs,
-    queues,
-    workers,
-    endpoints,
-    region: pick(REGIONS),
+    alerts: [],
+    traces: [],
+    logs: [],
+    queues: [],
+    workers: [],
+    endpoints: [],
+    region: "us-east-1",
     environment: "prod",
-    aiSummary,
+    aiSummary: `Inspecting ${entityTitle}${service ? ` in ${service}` : ""}. Open related pages from navigation for full correlation.`,
   };
 }

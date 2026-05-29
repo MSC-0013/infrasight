@@ -6,7 +6,9 @@ import { PageHeader } from "@/components/page-header";
 import { WorkerCard } from "@/components/worker-card";
 import { MetricCard } from "@/components/metric-card";
 import { ChartCard } from "@/components/chart-card";
-import { generateWorkers, generateTimeSeries } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseWorkers } from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 
 export const Route = createFileRoute("/workers")({
   beforeLoad: () => {
@@ -25,16 +27,20 @@ export const Route = createFileRoute("/workers")({
 });
 
 function WorkersPage() {
-  const workers = useMemo(() => generateWorkers(), []);
-  const cpu = useMemo(() => generateTimeSeries(60, 45, 18), []);
-  const mem = useMemo(() => generateTimeSeries(60, 58, 12), []);
-  const jobs = useMemo(() => generateTimeSeries(60, 1200, 280), []);
-  const spark = useMemo(() => generateTimeSeries(20, 80, 10), []);
+  const { data: workers = [], isLoading, isError, error, refetch } = usePulseWorkers();
+  const avgCpu = workers.length ? workers.reduce((a, w) => a + w.cpu, 0) / workers.length : 0;
+  const avgMem = workers.length ? workers.reduce((a, w) => a + w.memory, 0) / workers.length : 0;
+  const totalJobs = workers.reduce((a, w) => a + w.jobsProcessed, 0);
+  const cpu = useMemo(() => sparklineFromValue(avgCpu, 60, 0.2), [avgCpu]);
+  const mem = useMemo(() => sparklineFromValue(avgMem, 60, 0.15), [avgMem]);
+  const jobs = useMemo(() => sparklineFromValue(totalJobs / 1000, 60, 0.25), [totalJobs]);
+  const spark = useMemo(() => sparklineFromValue(workers.filter((w) => w.status === "online").length, 20), [workers]);
 
   return (
     <div className="flex flex-col">
       <PageHeader title="Worker Monitoring" description="Distributed worker fleet across regions." />
 
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
         <MetricCard label="Total workers" value={workers.length.toString()} series={spark} trend={0} status="info" />
         <MetricCard label="Online" value={workers.filter(w => w.status === "online").length.toString()} series={spark} trend={1.2} status="success" />
@@ -74,6 +80,7 @@ function WorkersPage() {
           </pre>
         </ChartCard>
       </div>
+      </QueryBoundary>
     </div>
   );
 }

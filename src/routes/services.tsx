@@ -3,7 +3,8 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { generateServices, type ServiceHealth } from "@/lib/mock-data";
+import type { ServiceHealth } from "@/lib/mock-data";
+import { usePulseServices } from "@/lib/pulse-hooks";
 import { formatDistanceToNow, formatNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/services")({
@@ -21,7 +22,7 @@ const tone = (s: ServiceHealth["status"]) =>
   s === "healthy" ? "success" : s === "degraded" ? "warning" : "error";
 
 function ServicesPage() {
-  const services = useMemo(() => generateServices(), []);
+  const { data: services = [] } = usePulseServices();
   const healthy = services.filter((s) => s.status === "healthy").length;
 
   return (

@@ -3,7 +3,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { generateDeployments, type Deployment } from "@/lib/mock-data";
+import type { Deployment } from "@/lib/mock-data";
+import { usePulseDeployments } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "@/lib/format";
 import { GitBranch, RotateCcw } from "lucide-react";
 
@@ -23,7 +24,7 @@ const tone: Record<Deployment["status"], "success" | "error" | "warning" | "info
 };
 
 function DeploymentsPage() {
-  const deploys = useMemo(() => generateDeployments(28), []);
+  const { data: deploys = [] } = usePulseDeployments(28);
   return (
     <div className="flex flex-col">
       <PageHeader

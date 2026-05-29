@@ -2,8 +2,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { TopologyGraph } from "@/components/topology-graph";
-import { generateTopology } from "@/lib/mock-data";
-import { useMemo } from "react";
+import { usePulseTopology } from "@/lib/pulse-hooks";
 
 export const Route = createFileRoute("/topology")({
   beforeLoad: () => {
@@ -11,13 +10,15 @@ export const Route = createFileRoute("/topology")({
     if (!isAuthenticated) throw redirect({ to: "/login" });
     if (!can("view:topology")) throw redirect({ to: "/dashboard" });
   },
-  
+
   head: () => ({ meta: [{ title: "Topology — Pulse" }] }),
   component: TopologyPage,
 });
 
 function TopologyPage() {
-  const { nodes, edges } = useMemo(() => generateTopology(), []);
+  const { data } = usePulseTopology();
+  const nodes = data?.nodes ?? [];
+  const edges = data?.edges ?? [];
   const degraded = nodes.filter((n) => n.status !== "healthy").length;
   return (
     <div className="flex flex-col">

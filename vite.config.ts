@@ -176,6 +176,16 @@ export default defineConfig(({ command, mode }) => {
     server: {
       host: "::",
       port: 8080,
+      proxy: {
+        "/api": {
+          target: "http://localhost:3001",
+          changeOrigin: true,
+        },
+        "/ws": {
+          target: "http://localhost:3001",
+          ws: true,
+        },
+      },
     },
     define: envDefine,
     resolve: {

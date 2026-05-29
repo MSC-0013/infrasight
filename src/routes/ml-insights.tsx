@@ -5,7 +5,9 @@ import { PageHeader } from "@/components/page-header";
 import { ChartCard } from "@/components/chart-card";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
-import { generateMLInsights, generateTimeSeries } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseMLInsights } from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Sparkles, TrendingUp, OctagonAlert as AlertOctagon, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -30,20 +32,25 @@ const TYPE_TONE = { anomaly: "warning", prediction: "info", summary: "neutral" }
 const TYPE_ICON = { anomaly: AlertOctagon, prediction: TrendingUp, summary: FileText } as const;
 
 function MLPage() {
-  const insights = useMemo(() => generateMLInsights(), []);
-  const anomalies = useMemo(() => generateTimeSeries(60, 5, 3), []);
-  const confidence = useMemo(() => generateTimeSeries(60, 88, 6), []);
-  const spark = useMemo(() => generateTimeSeries(20, 90, 5), []);
+  const { data: insights = [], isLoading, isError, error, refetch } = usePulseMLInsights();
+  const anomalyCount = insights.filter((i) => i.type === "anomaly").length;
+  const avgConfidence = insights.length
+    ? Math.round(insights.reduce((a, i) => a + i.confidence, 0) / insights.length)
+    : 0;
+  const anomalies = useMemo(() => sparklineFromValue(anomalyCount, 60), [anomalyCount]);
+  const confidence = useMemo(() => sparklineFromValue(avgConfidence, 60, 0.08), [avgConfidence]);
+  const spark = useMemo(() => sparklineFromValue(avgConfidence, 20, 0.05), [avgConfidence]);
 
   return (
     <div className="flex flex-col">
       <PageHeader title="ML Insights" description="AI-powered anomaly detection, predictions and operational summaries." />
 
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
-        <MetricCard label="Anomalies detected (24h)" value="14" series={spark} trend={-12.2} trendInverted status="warning" />
-        <MetricCard label="Avg confidence" value="91.2" unit="%" series={spark} trend={1.4} status="success" />
-        <MetricCard label="Predictions today" value="328" series={spark} trend={4.6} status="info" />
-        <MetricCard label="Models running" value="6" series={spark} trend={0} status="info" />
+        <MetricCard label="Anomalies detected" value={String(anomalyCount)} series={spark} trend={0} status="warning" />
+        <MetricCard label="Avg confidence" value={String(avgConfidence)} unit="%" series={spark} trend={0} status="success" />
+        <MetricCard label="Predictions" value={String(insights.filter((i) => i.type === "prediction").length)} series={spark} trend={0} status="info" />
+        <MetricCard label="Summaries" value={String(insights.filter((i) => i.type === "summary").length)} series={spark} trend={0} status="info" />
       </div>
 
       <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-2">
@@ -102,6 +109,7 @@ function MLPage() {
           })}
         </div>
       </div>
+      </QueryBoundary>
     </div>
   );
 }

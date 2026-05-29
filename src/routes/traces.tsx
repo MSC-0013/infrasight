@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/ui-states";
-import { generateTraces, type Trace } from "@/lib/mock-data";
+import type { Trace } from "@/lib/mock-data";
+import { usePulseTraces } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Search, Workflow } from "lucide-react";
@@ -41,7 +42,7 @@ function TracesPage() {
   const setSearch = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
-  const traces = useMemo(() => generateTraces(60), []);
+  const { data: traces = [] } = usePulseTraces();
   const filtered = traces.filter((t) => {
     if (search.status !== "all" && t.status !== search.status) return false;
     if (search.q && !(t.id.includes(search.q) || t.rootOperation.includes(search.q) || t.rootService.includes(search.q))) return false;

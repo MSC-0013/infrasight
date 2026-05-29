@@ -8,10 +8,9 @@ import {
 } from "@/components/ui/table";
 import { OctagonAlert as AlertOctagon, GitBranch, Flame } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import {
-  generateIncidents, generateDeployments, generateSLOs,
-  generateTimeSeries, type Incident, type Deployment, type SLO,
-} from "@/lib/mock-data";
+import type { Incident, Deployment, SLO } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseIncidents, usePulseDeployments, usePulseSLOs, usePulseDashboardMetrics } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +25,10 @@ const DEPLOY_TONE: Record<string, "success" | "error" | "warning" | "info"> = {
 };
 
 export function SREDashboard() {
-  const incidents = useMemo(() => generateIncidents(), []);
-  const deployments = useMemo(() => generateDeployments(10), []);
-  const slos = useMemo(() => generateSLOs(), []);
+  const { data: metrics } = usePulseDashboardMetrics();
+  const { data: incidents = [] } = usePulseIncidents();
+  const { data: deployments = [] } = usePulseDeployments(10);
+  const { data: slos = [] } = usePulseSLOs();
 
   const openIncidents = incidents.filter(i => i.status !== "resolved").length;
   const sev1Incidents = incidents.filter(i => i.severity === "sev1" && i.status !== "resolved").length;
@@ -54,14 +54,14 @@ export function SREDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Open incidents" value={openIncidents} series={generateTimeSeries(20, 3, 1)} trend={-14.2} trendInverted status="warning" />
-        <MetricCard label="SEV1 incidents" value={sev1Incidents} series={generateTimeSeries(20, 1, 0)} trend={0} status={sev1Incidents > 0 ? "critical" : "success"} />
-        <MetricCard label="Error budget" value={`${avgErrorBudget}%`} series={generateTimeSeries(20, 82, 5)} trend={-2.1} trendInverted status={avgErrorBudget < 50 ? "error" : "warning"} />
-        <MetricCard label="Deploys 24h" value={deploys24h} series={generateTimeSeries(20, 14, 3)} trend={8.4} status="info" />
-        <MetricCard label="MTTR (7d)" value="18m" series={generateTimeSeries(20, 18, 6)} trend={-5.2} trendInverted status="success" />
-        <MetricCard label="At-risk SLOs" value={atRiskSLOs} series={generateTimeSeries(20, 2, 1)} trend={0} status="warning" />
-        <MetricCard label="Breached SLOs" value={breachedSLOs} series={generateTimeSeries(20, 0, 0)} trend={0} status={breachedSLOs > 0 ? "error" : "success"} />
-        <MetricCard label="Uptime" value="99.992%" series={generateTimeSeries(20, 99.992, 0.008)} trend={0.01} status="success" />
+        <MetricCard label="Open incidents" value={openIncidents} series={sparklineFromValue(openIncidents, 20)} trend={0} status="warning" />
+        <MetricCard label="SEV1 incidents" value={sev1Incidents} series={sparklineFromValue(sev1Incidents, 20)} trend={0} status={sev1Incidents > 0 ? "critical" : "success"} />
+        <MetricCard label="Error budget" value={`${avgErrorBudget}%`} series={sparklineFromValue(avgErrorBudget, 20)} trend={0} status={avgErrorBudget < 50 ? "error" : "warning"} />
+        <MetricCard label="Deploys 24h" value={deploys24h} series={sparklineFromValue(deploys24h, 20)} trend={0} status="info" />
+        <MetricCard label="Active alerts" value={metrics?.activeAlerts ?? 0} series={sparklineFromValue(metrics?.activeAlerts ?? 0, 20)} trend={0} status="info" />
+        <MetricCard label="At-risk SLOs" value={atRiskSLOs} series={sparklineFromValue(atRiskSLOs, 20)} trend={0} status="warning" />
+        <MetricCard label="Breached SLOs" value={breachedSLOs} series={sparklineFromValue(breachedSLOs, 20)} trend={0} status={breachedSLOs > 0 ? "error" : "success"} />
+        <MetricCard label="Uptime" value={`${metrics?.avgUptime ?? 99.9}%`} series={sparklineFromValue(metrics?.avgUptime ?? 99.9, 20, 0.01)} trend={0} status="success" />
       </div>
 
       {/* Incidents + Deployments */}

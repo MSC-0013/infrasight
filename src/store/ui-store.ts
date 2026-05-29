@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { Environment } from "@/lib/mock-data";
 
 interface UIState {
@@ -13,14 +14,19 @@ interface UIState {
   setEnvironment: (v: Environment) => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  sidebarCollapsed: false,
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-  setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
-  realtimeConnected: true,
-  setRealtimeConnected: (v) => set({ realtimeConnected: v }),
-  organization: "acme-prod",
-  setOrganization: (v) => set({ organization: v }),
-  environment: "prod",
-  setEnvironment: (v) => set({ environment: v }),
-}));
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      sidebarCollapsed: false,
+      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+      realtimeConnected: true,
+      setRealtimeConnected: (v) => set({ realtimeConnected: v }),
+      organization: "demo-org",
+      setOrganization: (v) => set({ organization: v }),
+      environment: "prod",
+      setEnvironment: (v) => set({ environment: v }),
+    }),
+    { name: "pulse-ui" },
+  ),
+);

@@ -12,16 +12,17 @@ import {
   Settings, Bell, Users, KeyRound, Plus,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import {
-  generateMembers, generateApiKeys, generateAlerts,
-  generateTimeSeries, type Member, type ApiKey, type Alert,
-} from "@/lib/mock-data";
+import type { Member, ApiKey, Alert } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseMembers, usePulseAlerts, usePulseApiKeys, usePulseDashboardMetrics, usePulseIncidents } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "date-fns";
 
 export function AdminDashboard() {
-  const members = useMemo(() => generateMembers(), []);
-  const apiKeys = useMemo(() => generateApiKeys(), []);
-  const alerts = useMemo(() => generateAlerts(8), []);
+  const { data: members = [] } = usePulseMembers();
+  const { data: apiKeys = [] } = usePulseApiKeys();
+  const { data: alerts = [] } = usePulseAlerts();
+  const { data: metrics } = usePulseDashboardMetrics();
+  const { data: incidents = [] } = usePulseIncidents();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -46,14 +47,14 @@ export function AdminDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Team members" value={activeMembers} series={generateTimeSeries(20, 24, 2)} trend={4.1} status="info" />
-        <MetricCard label="Pending invites" value={pendingInvites} series={generateTimeSeries(20, 3, 1)} trend={0} status="warning" />
-        <MetricCard label="Active integrations" value="9" series={generateTimeSeries(20, 9, 0)} trend={0} status="success" />
-        <MetricCard label="API keys" value={activeKeys} series={generateTimeSeries(20, 14, 2)} trend={1.2} status="info" />
-        <MetricCard label="Active alerts" value={alerts.filter(a => !a.acknowledged).length} series={generateTimeSeries(20, 4, 2)} trend={0} status="warning" />
-        <MetricCard label="Open incidents" value={3} series={generateTimeSeries(20, 3, 1)} trend={-14} trendInverted status="info" />
-        <MetricCard label="Events / hour" value="3.2k" series={generateTimeSeries(20, 3200, 400)} trend={2.8} status="info" variant="area" />
-        <MetricCard label="Uptime" value="99.9%" series={generateTimeSeries(20, 99.9, 0.008)} trend={0.01} status="success" />
+        <MetricCard label="Team members" value={activeMembers} series={sparklineFromValue(activeMembers, 20)} trend={0} status="info" />
+        <MetricCard label="Pending invites" value={pendingInvites} series={sparklineFromValue(pendingInvites, 20)} trend={0} status="warning" />
+        <MetricCard label="Healthy services" value={`${metrics?.healthyServices ?? 0}/${metrics?.totalServices ?? 0}`} series={sparklineFromValue(metrics?.healthyServices ?? 0, 20)} trend={0} status="success" />
+        <MetricCard label="API keys" value={activeKeys} series={sparklineFromValue(activeKeys, 20)} trend={0} status="info" />
+        <MetricCard label="Active alerts" value={alerts.filter(a => !a.acknowledged).length} series={sparklineFromValue(alerts.filter(a => !a.acknowledged).length, 20)} trend={0} status="warning" />
+        <MetricCard label="Open incidents" value={incidents.filter(i => i.status !== "resolved").length} series={sparklineFromValue(incidents.filter(i => i.status !== "resolved").length, 20)} trend={0} status="info" />
+        <MetricCard label="Events / hour" value={String(metrics?.eventsPerHour ?? 0)} series={sparklineFromValue(metrics?.eventsPerHour ?? 0, 20)} trend={0} status="info" variant="area" />
+        <MetricCard label="Uptime" value={`${metrics?.avgUptime ?? 99.9}%`} series={sparklineFromValue(metrics?.avgUptime ?? 99.9, 20, 0.01)} trend={0} status="success" />
       </div>
 
       {/* Members + API Keys */}

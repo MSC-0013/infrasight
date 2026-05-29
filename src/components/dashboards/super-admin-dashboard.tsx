@@ -8,26 +8,26 @@ import {
 } from "@/components/ui/table";
 import { ShieldCheck, Building2, KeyRound, FileText } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import {
-  generateOrganizations, generateAuditLogs, generateApiKeys,
-  generateTimeSeries, type Organization, type AuditLog, type ApiKey,
-} from "@/lib/mock-data";
+import type { Organization, AuditLog, ApiKey } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseOrganizations, usePulseAuditLogs, usePulseApiKeys, usePulseMembers } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "date-fns";
 
 export function SuperAdminDashboard() {
-  const orgs = useMemo(() => generateOrganizations(), []);
-  const auditLogs = useMemo(() => generateAuditLogs(15), []);
-  const apiKeys = useMemo(() => generateApiKeys(), []);
-
-  const sparkA = useMemo(() => generateTimeSeries(20, 12, 2), []);
-  const sparkB = useMemo(() => generateTimeSeries(20, 248, 30), []);
-  const sparkC = useMemo(() => generateTimeSeries(20, 14, 4), []);
-  const sparkD = useMemo(() => generateTimeSeries(20, 8400, 800), []);
+  const { data: orgs = [] } = usePulseOrganizations();
+  const { data: auditLogs = [] } = usePulseAuditLogs();
+  const { data: apiKeys = [] } = usePulseApiKeys();
+  const { data: members = [] } = usePulseMembers();
 
   const totalOrgs = orgs.length;
-  const totalMembers = 248;
+  const totalMembers = members.length;
   const totalApiKeys = apiKeys.filter(k => k.status === "active").length;
   const auditEvents24h = auditLogs.length;
+
+  const sparkA = useMemo(() => sparklineFromValue(totalOrgs, 20), [totalOrgs]);
+  const sparkB = useMemo(() => sparklineFromValue(totalMembers, 20), [totalMembers]);
+  const sparkC = useMemo(() => sparklineFromValue(totalApiKeys, 20), [totalApiKeys]);
+  const sparkD = useMemo(() => sparklineFromValue(auditEvents24h, 20), [auditEvents24h]);
 
   return (
     <div className="flex flex-col">
@@ -44,14 +44,14 @@ export function SuperAdminDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Workspaces" value={totalOrgs} series={sparkA} trend={4.2} status="info" variant="area" />
-        <MetricCard label="Total members" value={totalMembers} series={sparkB} trend={6.1} status="info" />
-        <MetricCard label="Active API keys" value={totalApiKeys} series={sparkC} trend={2.3} status="success" />
-        <MetricCard label="Audit 24h" value={auditEvents24h} series={sparkD} trend={-3.2} trendInverted status="info" />
-        <MetricCard label="Security findings" value="0 high" series={generateTimeSeries(20, 0, 0)} trend={0} status="success" />
-        <MetricCard label="Seats used" value="248 / 400" series={sparkB} trend={1.8} status="warning" />
-        <MetricCard label="MRR" value="$18.4k" series={generateTimeSeries(20, 18400, 1200)} trend={7.2} status="success" variant="area" />
-        <MetricCard label="Regions" value="5" series={generateTimeSeries(20, 5, 0)} trend={0} status="info" />
+        <MetricCard label="Workspaces" value={totalOrgs} series={sparkA} trend={0} status="info" variant="area" />
+        <MetricCard label="Total members" value={totalMembers} series={sparkB} trend={0} status="info" />
+        <MetricCard label="Active API keys" value={totalApiKeys} series={sparkC} trend={0} status="success" />
+        <MetricCard label="Audit 24h" value={auditEvents24h} series={sparkD} trend={0} status="info" />
+        <MetricCard label="Organizations" value={totalOrgs} series={sparkA} trend={0} status="success" />
+        <MetricCard label="Seats used" value={totalMembers} series={sparkB} trend={0} status="warning" />
+        <MetricCard label="Audit total" value={auditLogs.length} series={sparkD} trend={0} status="success" variant="area" />
+        <MetricCard label="API keys" value={apiKeys.length} series={sparkC} trend={0} status="info" />
       </div>
 
       {/* Orgs + Audit */}

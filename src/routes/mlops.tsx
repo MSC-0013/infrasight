@@ -4,7 +4,9 @@ import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { ChartCard } from "@/components/chart-card";
-import { generateMLModels, generateMLInsights, generateConfidenceDistribution, generateTimeSeries } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import { usePulseMLModels, usePulseMLInsights } from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatDistanceToNow } from "@/lib/format";
 
@@ -20,10 +22,18 @@ export const Route = createFileRoute("/mlops")({
 });
 
 function MLOpsPage() {
-  const models = useMemo(() => generateMLModels(), []);
-  const insights = useMemo(() => generateMLInsights(), []);
-  const dist = useMemo(() => generateConfidenceDistribution(), []);
-  const inferSeries = useMemo(() => generateTimeSeries(60, 220, 60), []);
+  const { data: models = [], isLoading, isError, error, refetch } = usePulseMLModels();
+  const { data: insights = [] } = usePulseMLInsights();
+  const dist = useMemo(
+    () =>
+      ["0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"].map((bucket, i) => ({
+        bucket,
+        count: models.filter((m) => Math.floor(m.accuracy * 10) === i + 5).length || Math.round(models.length / 5),
+      })),
+    [models],
+  );
+  const totalInferences = models.reduce((a, m) => a + m.throughput, 0);
+  const inferSeries = useMemo(() => sparklineFromValue(totalInferences / 1000, 60, 0.2), [totalInferences]);
 
   return (
     <div className="flex flex-col">
@@ -31,6 +41,7 @@ function MLOpsPage() {
         title="MLOps"
         description="Model serving health, drift detection and AI insights across the platform."
       />
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="space-y-4 px-6 py-4">
         <div className="grid gap-3 lg:grid-cols-2">
           {models.map((m) => (
@@ -106,6 +117,7 @@ function MLOpsPage() {
           </div>
         </div>
       </div>
+      </QueryBoundary>
     </div>
   );
 }

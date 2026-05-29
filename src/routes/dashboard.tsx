@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, Navigate } from "@tanstack/react-router";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, BarChart, Bar, PieChart, Pie, Cell, Legend,
@@ -24,12 +24,29 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  generateEvents, generateAlerts, generateWorkers, generateQueues,
-  generateThroughputSeries, generateLatencySeries, generateQueueLagSeries,
-  generateEventDistribution, generateTimeSeries, generateTimelineEvents, type AppEvent,
-} from "@/lib/mock-data";
+import type { AppEvent } from "@/lib/mock-data";
 import { useAuthStore } from "@/store/auth-store";
+import { QueryBoundary } from "@/components/data-state";
+import {
+  usePulseDashboardMetrics,
+  usePulseEvents,
+  usePulseAlerts,
+  usePulseWorkers,
+  usePulseQueues,
+  usePulseThroughput,
+  usePulseIncidents,
+  usePulseDeployments,
+  usePulseSLOs,
+  useAcknowledgeAlert,
+} from "@/lib/pulse-hooks";
+import {
+  sparklineFromValue,
+  throughputToChart,
+  latencyFromThroughput,
+  queueLagFromQueues,
+  distributionFromEvents,
+  buildTimelineFromApi,
+} from "@/lib/chart-helpers";
 import { UnifiedTimeline } from "@/components/unified-timeline";
 import { formatDistanceToNow, format } from "date-fns";
 import { ChevronRight, RefreshCw, ListFilter as Filter, Download } from "lucide-react";
@@ -71,36 +88,43 @@ function DashboardPage() {
 }
 
 function OverviewDashboard() {
-  const initialEvents = useMemo(() => generateEvents(40), []);
-  const [events, setEvents] = useState<AppEvent[]>(initialEvents);
-  const [alerts, setAlerts] = useState(useMemo(() => generateAlerts(6), []));
-  const workers = useMemo(() => generateWorkers(), []);
-  const queues = useMemo(() => generateQueues(), []);
-  const throughput = useMemo(() => generateThroughputSeries(40), []);
-  const latency = useMemo(() => generateLatencySeries(40), []);
-  const queueLag = useMemo(() => generateQueueLagSeries(40), []);
-  const eventDist = useMemo(() => generateEventDistribution(), []);
-  const sparkA = useMemo(() => generateTimeSeries(20, 800, 80), []);
-  const sparkB = useMemo(() => generateTimeSeries(20, 40, 12), []);
-  const sparkC = useMemo(() => generateTimeSeries(20, 450, 100), []);
-  const sparkD = useMemo(() => generateTimeSeries(20, 92, 8), []);
-  const sparkE = useMemo(() => generateTimeSeries(20, 1.2, 0.6), []);
-  const sparkF = useMemo(() => generateTimeSeries(20, 99.4, 0.4), []);
-  const sparkG = useMemo(() => generateTimeSeries(20, 1240, 200), []);
-  const sparkH = useMemo(() => generateTimeSeries(20, 8, 1), []);
-  const timelineEvents = useMemo(() => generateTimelineEvents(40), []);
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, error: metricsErr, refetch: refetchMetrics } = usePulseDashboardMetrics();
+  const { data: events = [], isLoading: eventsLoading, isError: eventsError, error: eventsErr, refetch: refetchEvents } = usePulseEvents(50);
+  const { data: alerts = [], refetch: refetchAlerts } = usePulseAlerts();
+  const { data: workers = [] } = usePulseWorkers();
+  const { data: queues = [] } = usePulseQueues();
+  const { data: throughputRaw = [] } = usePulseThroughput(1);
+  const { data: incidents = [] } = usePulseIncidents();
+  const { data: deployments = [] } = usePulseDeployments(20);
+  const { data: slos = [] } = usePulseSLOs();
+  const acknowledge = useAcknowledgeAlert();
+
+  const throughput = useMemo(() => throughputToChart(throughputRaw), [throughputRaw]);
+  const latency = useMemo(() => latencyFromThroughput(throughputRaw), [throughputRaw]);
+  const queueLag = useMemo(() => queueLagFromQueues(queues), [queues]);
+  const eventDist = useMemo(() => distributionFromEvents(events), [events]);
+  const timelineEvents = useMemo(
+    () => buildTimelineFromApi(incidents, deployments, alerts, slos),
+    [incidents, deployments, alerts, slos],
+  );
+
+  const m = metrics;
+  const sparkA = useMemo(() => sparklineFromValue(m?.totalRps ?? 0, 20, 0.2), [m?.totalRps]);
+  const sparkB = useMemo(() => sparklineFromValue(m?.avgP95 ?? 0, 20, 0.15), [m?.avgP95]);
+  const sparkC = useMemo(() => sparklineFromValue(m?.avgQueueLag ?? 0, 20, 0.2), [m?.avgQueueLag]);
+  const sparkD = useMemo(() => sparklineFromValue(m?.onlineWorkers ?? 0, 20, 0.1), [m?.onlineWorkers]);
+  const sparkE = useMemo(() => sparklineFromValue(m?.avgErrorRate ?? 0, 20, 0.25), [m?.avgErrorRate]);
+  const sparkF = useMemo(() => sparklineFromValue(100 - (m?.avgErrorRate ?? 0), 20, 0.05), [m?.avgErrorRate]);
+  const sparkG = useMemo(() => sparklineFromValue(m?.eventsPerHour ?? 0, 20, 0.2), [m?.eventsPerHour]);
+  const sparkH = useMemo(() => sparklineFromValue(m?.avgUptime ?? 99.9, 20, 0.01), [m?.avgUptime]);
+
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
+  const isLoading = metricsLoading || eventsLoading;
+  const isError = metricsError || eventsError;
+  const error = metricsErr ?? eventsErr;
+  const refetch = () => { refetchMetrics(); refetchEvents(); refetchAlerts(); };
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      const [next] = generateEvents(1);
-      setEvents((prev) => [{ ...next, timestamp: new Date().toISOString() }, ...prev].slice(0, 50));
-    }, 2500);
-    return () => clearInterval(id);
-  }, []);
-
-  const ackAlert = (id: string) =>
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
+  const ackAlert = (id: string) => acknowledge.mutate(id);
 
   const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-primary)"];
 
@@ -111,23 +135,22 @@ function OverviewDashboard() {
         title="Overview"
         description="Realtime health across events, queues, workers and ML."
         actions={
-          <>
-            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"><Filter className="h-3 w-3" />Filter</Button>
-            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"><RefreshCw className="h-3 w-3" />Refresh</Button>
-            <Button size="sm" className="h-7 gap-1.5 text-xs"><Download className="h-3 w-3" />Export</Button>
-          </>
+          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={refetch}>
+            <RefreshCw className="h-3 w-3" />Refresh
+          </Button>
         }
       />
 
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Events / sec" value="847" series={sparkA} trend={4.2} status="info" variant="area" />
-        <MetricCard label="API latency p95" value="142" unit="ms" series={sparkB} trend={-3.1} trendInverted status="info" />
-        <MetricCard label="Queue lag" value="412" unit="ms" series={sparkC} trend={9.8} trendInverted status="warning" />
-        <MetricCard label="Active workers" value="92" series={sparkD} trend={1.2} status="success" />
-        <MetricCard label="Error rate" value="1.24" unit="%" series={sparkE} trend={-12.4} trendInverted status="success" />
-        <MetricCard label="Success rate" value="98.76" unit="%" series={sparkF} trend={0.3} status="success" />
-        <MetricCard label="Active users" value="12.4k" series={sparkG} trend={6.7} status="info" variant="area" />
-        <MetricCard label="System uptime" value="99.992" unit="%" series={sparkH} trend={0.01} status="success" />
+        <MetricCard label="Total RPS" value={String(m?.totalRps ?? 0)} series={sparkA} trend={0} status="info" variant="area" />
+        <MetricCard label="API latency p95" value={String(m?.avgP95 ?? 0)} unit="ms" series={sparkB} trend={0} status="info" />
+        <MetricCard label="Queue lag" value={String(m?.avgQueueLag ?? 0)} unit="ms" series={sparkC} trend={0} status="warning" />
+        <MetricCard label="Active workers" value={`${m?.onlineWorkers ?? 0}/${m?.totalWorkers ?? 0}`} series={sparkD} trend={0} status="success" />
+        <MetricCard label="Error rate" value={String(m?.avgErrorRate ?? 0)} unit="%" series={sparkE} trend={0} status="success" />
+        <MetricCard label="Success rate" value={String(+(100 - (m?.avgErrorRate ?? 0)).toFixed(2))} unit="%" series={sparkF} trend={0} status="success" />
+        <MetricCard label="Events / hour" value={String(m?.eventsPerHour ?? 0)} series={sparkG} trend={0} status="info" variant="area" />
+        <MetricCard label="System uptime" value={String(m?.avgUptime ?? 0)} unit="%" series={sparkH} trend={0} status="success" />
       </div>
 
       <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-3">
@@ -230,7 +253,7 @@ function OverviewDashboard() {
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <div>
               <h3 className="text-sm font-semibold tracking-tight">Realtime event stream</h3>
-              <p className="text-xs text-muted-foreground">Updates every 2.5s · {events.length} events buffered</p>
+              <p className="text-xs text-muted-foreground">{events.length} events from database</p>
             </div>
             <StatusBadge tone="success">live</StatusBadge>
           </div>
@@ -353,6 +376,7 @@ function OverviewDashboard() {
           )}
         </DialogContent>
       </Dialog>
+      </QueryBoundary>
     </div>
   );
 }

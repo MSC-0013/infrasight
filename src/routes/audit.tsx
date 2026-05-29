@@ -2,7 +2,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
-import { generateAuditLogs } from "@/lib/mock-data";
+import { usePulseAuditLogs } from "@/lib/pulse-hooks";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "@/lib/format";
 
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/audit")({
 });
 
 function AuditPage() {
-  const all = useMemo(() => generateAuditLogs(120), []);
+  const { data: all = [] } = usePulseAuditLogs();
   const [q, setQ] = useState("");
   const filtered = all.filter((a) => !q || a.actor.includes(q) || a.action.includes(q) || a.entity.includes(q));
 

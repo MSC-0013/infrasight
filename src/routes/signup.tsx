@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
 import { OAuthButtons } from "@/components/oauth-buttons";
-import { useAuthStore } from "@/store/auth-store";
+import { registerWithCredentials } from "@/store/auth-store";
+import { ApiError } from "@/lib/api/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -13,21 +14,33 @@ export const Route = createFileRoute("/signup")({
 
 function SignupPage() {
   const navigate = useNavigate();
-  const signIn = useAuthStore((s) => s.signIn);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [org, setOrg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !org) {
       toast.error("All fields required");
       return;
     }
-    signIn(email, { name: name || undefined, role: "admin" });
-    toast.success(`Workspace ${org} created`);
-    navigate({ to: "/dashboard" });
+    setLoading(true);
+    try {
+      await registerWithCredentials({
+        email,
+        password,
+        name: name || email.split("@")[0],
+        organizationName: org,
+      });
+      toast.success(`Workspace ${org} created`);
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Registration failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,8 +68,8 @@ function SignupPage() {
         <p className="text-[10px] text-muted-foreground">
           By signing up you agree to the Terms and Privacy Policy. No credit card required for the 14-day trial.
         </p>
-        <button type="submit" className="h-9 w-full rounded-md bg-primary text-xs font-medium text-primary-foreground hover:bg-primary/90">
-          Create workspace
+        <button type="submit" disabled={loading} className="h-9 w-full rounded-md bg-primary text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+          {loading ? "Creating…" : "Create workspace"}
         </button>
       </form>
       <p className="mt-6 text-center text-xs text-muted-foreground">

@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { generateOrganizations } from "@/lib/mock-data";
+import { usePulseOrganizations } from "@/lib/pulse-hooks";
 
 export const Route = createFileRoute("/organizations")({
   beforeLoad: () => {
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/organizations")({
 const PLAN_TONE = { free: "neutral", pro: "info", enterprise: "success" } as const;
 
 function OrgsPage() {
-  const orgs = useMemo(() => generateOrganizations(), []);
+  const { data: orgs = [] } = usePulseOrganizations();
 
   return (
     <div className="flex flex-col">

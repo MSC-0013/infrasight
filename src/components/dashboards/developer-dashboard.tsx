@@ -17,11 +17,9 @@ import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip,
 } from "recharts";
-import {
-  generateServices, generateIncidents, generateEvents,
-  generateLatencySeries, generateThroughputSeries, generateTimeSeries,
-  type ServiceHealth, type AppEvent,
-} from "@/lib/mock-data";
+import type { ServiceHealth, AppEvent } from "@/lib/mock-data";
+import { sparklineFromValue, throughputToChart, latencyFromThroughput } from "@/lib/chart-helpers";
+import { usePulseServices, usePulseIncidents, usePulseEvents, usePulseDashboardMetrics, usePulseThroughput } from "@/lib/pulse-hooks";
 import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +28,13 @@ const STATUS_TONE: Record<string, "success" | "error" | "warning" | "info"> = {
 };
 
 export function DeveloperDashboard() {
-  const services = useMemo(() => generateServices(), []);
-  const incidents = useMemo(() => generateIncidents(), []);
-  const events = useMemo(() => generateEvents(20), []);
-  const throughput = useMemo(() => generateThroughputSeries(40), []);
-  const latency = useMemo(() => generateLatencySeries(40), []);
+  const { data: metrics } = usePulseDashboardMetrics();
+  const { data: services = [] } = usePulseServices();
+  const { data: incidents = [] } = usePulseIncidents();
+  const { data: events = [] } = usePulseEvents(20);
+  const { data: throughputRaw = [] } = usePulseThroughput(1);
+  const throughput = useMemo(() => throughputToChart(throughputRaw), [throughputRaw]);
+  const latency = useMemo(() => latencyFromThroughput(throughputRaw), [throughputRaw]);
 
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
 
@@ -62,14 +62,14 @@ export function DeveloperDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4 xl:grid-cols-8">
-        <MetricCard label="Your services" value={serviceCount} series={generateTimeSeries(20, 6, 1)} trend={0} status="info" />
-        <MetricCard label="Open issues" value={openIssues} series={generateTimeSeries(20, 2, 1)} trend={-12} trendInverted status="warning" />
-        <MetricCard label="p95 latency" value={`${avgP95}ms`} series={generateTimeSeries(20, 142, 20)} trend={-3.1} trendInverted status="info" />
-        <MetricCard label="Error rate" value={`${avgErrorRate}%`} series={generateTimeSeries(20, 1.24, 0.4)} trend={-8.2} trendInverted status="success" />
-        <MetricCard label="Events / sec" value="847" series={generateTimeSeries(20, 847, 80)} trend={4.2} status="info" variant="area" />
-        <MetricCard label="Queue lag" value="412ms" series={generateTimeSeries(20, 412, 100)} trend={9.8} trendInverted status="warning" />
-        <MetricCard label="Active workers" value="92" series={generateTimeSeries(20, 92, 8)} trend={1.2} status="success" />
-        <MetricCard label="Success rate" value="98.76%" series={generateTimeSeries(20, 98.76, 0.4)} trend={0.3} status="success" />
+        <MetricCard label="Your services" value={serviceCount} series={sparklineFromValue(serviceCount, 20)} trend={0} status="info" />
+        <MetricCard label="Open issues" value={openIssues} series={sparklineFromValue(openIssues, 20)} trend={0} status="warning" />
+        <MetricCard label="p95 latency" value={`${avgP95}ms`} series={sparklineFromValue(avgP95, 20)} trend={0} status="info" />
+        <MetricCard label="Error rate" value={`${avgErrorRate}%`} series={sparklineFromValue(avgErrorRate, 20)} trend={0} status="success" />
+        <MetricCard label="Total RPS" value={String(metrics?.totalRps ?? 0)} series={sparklineFromValue(metrics?.totalRps ?? 0, 20)} trend={0} status="info" variant="area" />
+        <MetricCard label="Queue lag" value={`${metrics?.avgQueueLag ?? 0}ms`} series={sparklineFromValue(metrics?.avgQueueLag ?? 0, 20)} trend={0} status="warning" />
+        <MetricCard label="Active workers" value={`${metrics?.onlineWorkers ?? 0}`} series={sparklineFromValue(metrics?.onlineWorkers ?? 0, 20)} trend={0} status="success" />
+        <MetricCard label="Success rate" value={`${+(100 - (metrics?.avgErrorRate ?? 0)).toFixed(2)}%`} series={sparklineFromValue(100 - (metrics?.avgErrorRate ?? 0), 20)} trend={0} status="success" />
       </div>
 
       {/* Charts */}

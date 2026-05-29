@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ChartBar as BarChart3, Bell, GitBranch, Network, Workflow, ShieldCheck, Sparkles, ArrowRight, Github, Check, Zap, Globe, Clock, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
-import { generateTimeSeries } from "@/lib/mock-data";
+import { sparklineFromValue } from "@/lib/chart-helpers";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip,
@@ -46,7 +46,7 @@ const tooltipStyle = {
 };
 
 function LandingPage() {
-  const sparkline = generateTimeSeries(40, 800, 80);
+  const sparkline = sparklineFromValue(800, 40, 0.1);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

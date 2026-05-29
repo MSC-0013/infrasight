@@ -6,11 +6,16 @@ import { StatusBadge } from "@/components/status-badge";
 import { MetricCard } from "@/components/metric-card";
 import { ChartCard } from "@/components/chart-card";
 import { JSONViewer } from "@/components/json-viewer";
+import { sparklineFromValue } from "@/lib/chart-helpers";
+import type { ServiceHealth, type SLO } from "@/lib/mock-data";
 import {
-  generateServices, generateSLOs, generateDeployments, generateTraces,
-  generateLogs, generateAlerts, generateTimeSeries, generateLatencySeries,
-  generateThroughputSeries, type ServiceHealth, type SLO,
-} from "@/lib/mock-data";
+  usePulseServiceByName,
+  usePulseSLOs,
+  usePulseDeployments,
+  usePulseTraces,
+  usePulseAlerts,
+} from "@/lib/pulse-hooks";
+import { QueryBoundary } from "@/components/data-state";
 import { formatDistanceToNow, formatNumber } from "@/lib/format";
 import { useInspector } from "@/store/inspector-store";
 import { ChevronLeft, Activity, TriangleAlert as AlertTriangle, GitBranch, Workflow, FileText, Cpu, MemoryStick, Globe, Clock, TrendingUp, ShieldCheck, Layers, Boxes, ArrowUpRight, ArrowDownRight } from "lucide-react";
@@ -39,31 +44,40 @@ const sloTone = (s: SLO["status"]) =>
 
 function ServiceDetailPage() {
   const { serviceName } = Route.useParams();
-  const services = useMemo(() => generateServices(), []);
-  const service = useMemo(
-    () => services.find((s) => s.name === serviceName) ?? services[0],
-    [services, serviceName]
+  const { data: service, isLoading, isError, error, refetch } = usePulseServiceByName(serviceName);
+  const { data: allSlos = [] } = usePulseSLOs();
+  const { data: allDeploys = [] } = usePulseDeployments(12);
+  const { data: allTraces = [] } = usePulseTraces();
+  const { data: allAlerts = [] } = usePulseAlerts();
+
+  const slos = useMemo(() => allSlos.filter((s) => s.service === serviceName), [allSlos, serviceName]);
+  const deploys = useMemo(() => allDeploys.filter((d) => d.service === serviceName), [allDeploys, serviceName]);
+  const traces = useMemo(
+    () => allTraces.filter((t) => t.rootService === serviceName || t.services.includes(serviceName)),
+    [allTraces, serviceName],
   );
+  const alerts = useMemo(() => allAlerts.filter((a) => a.service === serviceName), [allAlerts, serviceName]);
 
-  const slos = useMemo(() => generateSLOs().filter((s) => s.service === service.name), [service.name]);
-  const deploys = useMemo(() => generateDeployments(12).filter((d) => d.service === service.name), [service.name]);
-  const traces = useMemo(() => generateTraces(20).filter((t) => t.rootService === service.name || t.services.includes(service.name)), [service.name]);
-  const alerts = useMemo(() => generateAlerts(8).filter((a) => a.service === service.name), [service.name]);
+  const latency = useMemo(() => sparklineFromValue(service?.p95Ms ?? 50, 60, 0.2), [service?.p95Ms]);
+  const throughput = useMemo(() => sparklineFromValue(service?.rps ?? 100, 40, 0.25), [service?.rps]);
+  const errorSeries = useMemo(() => sparklineFromValue((service?.errorRate ?? 0) * 100, 60, 0.3), [service?.errorRate]);
 
-  const latency = useMemo(() => generateLatencySeries(60), []);
-  const throughput = useMemo(() => generateThroughputSeries(40), []);
-  const errorSeries = useMemo(() => generateTimeSeries(60, service.errorRate, 0.4), [service.errorRate]);
-  const cpuSeries = useMemo(() => generateTimeSeries(60, service.cpu, 6), [service.cpu]);
-  const memSeries = useMemo(() => generateTimeSeries(60, service.memory, 5), [service.memory]);
-
-  const sparkLatency = useMemo(() => generateTimeSeries(20, service.p95Ms, 20), [service.p95Ms]);
-  const sparkRps = useMemo(() => generateTimeSeries(20, service.rps, 100), [service.rps]);
-  const sparkErr = useMemo(() => generateTimeSeries(20, service.errorRate, 0.3), [service.errorRate]);
-  const sparkUptime = useMemo(() => generateTimeSeries(20, service.uptimePct, 0.02), [service.uptimePct]);
+  const cpuSeries = useMemo(() => sparklineFromValue(service?.cpu ?? 0, 60, 0.15), [service?.cpu]);
+  const memSeries = useMemo(() => sparklineFromValue(service?.memory ?? 0, 60, 0.12), [service?.memory]);
+  const sparkLatency = useMemo(() => sparklineFromValue(service?.p95Ms ?? 50, 20, 0.2), [service?.p95Ms]);
+  const sparkRps = useMemo(() => sparklineFromValue(service?.rps ?? 100, 20, 0.25), [service?.rps]);
+  const sparkErr = useMemo(() => sparklineFromValue((service?.errorRate ?? 0) * 100, 20, 0.3), [service?.errorRate]);
+  const sparkUptime = useMemo(() => sparklineFromValue(service?.uptimePct ?? 99.9, 20, 0.01), [service?.uptimePct]);
 
   const inspect = useInspector((s) => s.inspect);
 
+  if (!service && !isLoading) {
+    return <div className="px-6 py-12 text-sm text-muted-foreground">Service not found</div>;
+  }
+
   return (
+    <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
+    {!service ? null : (
     <div className="flex flex-col">
       <PageHeader
         title={
@@ -398,6 +412,8 @@ function SLOCard({ slo }: { slo: SLO }) {
         </div>
       </div>
     </div>
+    )}
+    </QueryBoundary>
   );
 }
 

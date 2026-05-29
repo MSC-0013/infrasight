@@ -5,8 +5,11 @@ import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
 import { ChartCard } from "@/components/chart-card";
 import { StatusBadge } from "@/components/status-badge";
+import { QueryBoundary } from "@/components/data-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { generateApiEndpoints, generateLatencySeries, generateTimeSeries } from "@/lib/mock-data";
+import type { ApiEndpoint } from "@/lib/mock-data";
+import { sparklineFromValue, latencyFromThroughput, throughputToChart } from "@/lib/chart-helpers";
+import { usePulseServices, usePulseThroughput, usePulseDashboardMetrics } from "@/lib/pulse-hooks";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +19,6 @@ export const Route = createFileRoute("/api")({
     if (!isAuthenticated) throw redirect({ to: "/login" });
     if (!can("view:api")) throw redirect({ to: "/dashboard" });
   },
-  
   head: () => ({
     meta: [
       { title: "API Monitoring — Pulse" },
@@ -31,103 +33,100 @@ const METHOD_TONE: Record<string, "info" | "success" | "warning" | "error" | "ne
 };
 
 function ApiPage() {
-  const endpoints = useMemo(() => generateApiEndpoints(), []);
-  const latency = useMemo(() => generateLatencySeries(60), []);
-  const rps = useMemo(() => generateTimeSeries(60, 1400, 320), []);
-  const spark = useMemo(() => generateTimeSeries(20, 80, 12), []);
+  const { data: services = [], isLoading, isError, error, refetch } = usePulseServices();
+  const { data: metrics } = usePulseDashboardMetrics();
+  const { data: throughputRaw = [] } = usePulseThroughput(1);
+
+  const endpoints: ApiEndpoint[] = useMemo(
+    () =>
+      services.map((s) => ({
+        method: "GET" as const,
+        path: `/api/v1/${s.name}`,
+        p50: Math.round(s.p95Ms * 0.6),
+        p95: s.p95Ms,
+        p99: Math.round(s.p95Ms * 1.4),
+        rps: s.rps,
+        errorRate: +(s.errorRate * 100).toFixed(2),
+      })),
+    [services],
+  );
+
+  const latency = useMemo(() => latencyFromThroughput(throughputRaw), [throughputRaw]);
+  const rps = useMemo(() => throughputToChart(throughputRaw), [throughputRaw]);
+  const spark = useMemo(() => sparklineFromValue(metrics?.totalRps ?? 0, 20), [metrics?.totalRps]);
 
   return (
     <div className="flex flex-col">
-      <PageHeader title="API Monitoring" description="Endpoint-level latency, throughput and errors." />
+      <PageHeader title="API Monitoring" description="Endpoint-level latency, throughput and errors (from services)." />
 
-      <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
-        <MetricCard label="Requests / sec" value="1,424" series={spark} trend={3.4} status="info" />
-        <MetricCard label="p95 latency" value="142" unit="ms" series={spark} trend={-2.1} trendInverted status="success" />
-        <MetricCard label="Error rate" value="0.84" unit="%" series={spark} trend={-1.2} trendInverted status="success" />
-        <MetricCard label="Endpoints" value={endpoints.length.toString()} series={spark} trend={0} status="info" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-2">
-        <ChartCard title="Latency (ms)" description="p50 / p95 / p99">
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={latency} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} interval={10} />
-                <YAxis tick={tick} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={ttStyle} />
-                <Line dataKey="p50" stroke="var(--color-chart-2)" dot={false} strokeWidth={1.5} />
-                <Line dataKey="p95" stroke="var(--color-chart-1)" dot={false} strokeWidth={1.5} />
-                <Line dataKey="p99" stroke="var(--color-chart-4)" dot={false} strokeWidth={1.5} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
-        <ChartCard title="Throughput" description="Requests / sec">
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={rps} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <defs><linearGradient id="rps" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} /><stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} /></linearGradient></defs>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} interval={10} />
-                <YAxis tick={tick} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={ttStyle} />
-                <Area dataKey="value" stroke="var(--color-primary)" fill="url(#rps)" strokeWidth={1.5} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
-      </div>
-
-      <div className="px-6 py-4">
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <div className="border-b border-border px-4 py-2.5">
-            <h3 className="text-sm font-semibold">Endpoints</h3>
-            <p className="text-xs text-muted-foreground">Sorted by request volume</p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="h-8 text-[10px] font-mono uppercase">Method</TableHead>
-                <TableHead className="h-8 text-[10px] font-mono uppercase">Path</TableHead>
-                <TableHead className="h-8 text-right text-[10px] font-mono uppercase">RPS</TableHead>
-                <TableHead className="h-8 text-right text-[10px] font-mono uppercase">p50</TableHead>
-                <TableHead className="h-8 text-right text-[10px] font-mono uppercase">p95</TableHead>
-                <TableHead className="h-8 text-right text-[10px] font-mono uppercase">p99</TableHead>
-                <TableHead className="h-8 text-right text-[10px] font-mono uppercase">Error %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {endpoints.sort((a, b) => b.rps - a.rps).map((e) => (
-                <TableRow key={e.method + e.path} className="border-border text-xs hover:bg-accent/40">
-                  <TableCell className="py-1.5"><StatusBadge tone={METHOD_TONE[e.method]} dot={false}>{e.method}</StatusBadge></TableCell>
-                  <TableCell className="py-1.5 font-mono text-[11px]">{e.path}</TableCell>
-                  <TableCell className="py-1.5 text-right font-mono tabular-nums">{e.rps.toLocaleString()}</TableCell>
-                  <TableCell className="py-1.5 text-right font-mono tabular-nums">{e.p50}ms</TableCell>
-                  <TableCell className={cn("py-1.5 text-right font-mono tabular-nums", e.p95 > 250 && "text-warning")}>{e.p95}ms</TableCell>
-                  <TableCell className={cn("py-1.5 text-right font-mono tabular-nums", e.p99 > 600 && "text-destructive")}>{e.p99}ms</TableCell>
-                  <TableCell className={cn("py-1.5 text-right font-mono tabular-nums", e.errorRate > 1.5 && "text-destructive")}>{e.errorRate}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} refetch={refetch}>
+        <div className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-4">
+          <MetricCard label="Requests / sec" value={String(metrics?.totalRps ?? 0)} series={spark} trend={0} status="info" />
+          <MetricCard label="p95 latency" value={String(metrics?.avgP95 ?? 0)} unit="ms" series={sparklineFromValue(metrics?.avgP95 ?? 0, 20)} trend={0} status="success" />
+          <MetricCard label="Error rate" value={String(metrics?.avgErrorRate ?? 0)} unit="%" series={sparklineFromValue(metrics?.avgErrorRate ?? 0, 20)} trend={0} status="success" />
+          <MetricCard label="Endpoints" value={endpoints.length.toString()} series={sparklineFromValue(endpoints.length, 20)} trend={0} status="info" />
         </div>
-      </div>
 
-      <div className="px-6 pb-6">
-        <ChartCard title="Request trace (preview)">
-          <pre className="thin-scrollbar max-h-56 overflow-auto rounded-md bg-background p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
-{`trace_id=4d2f9b... POST /api/v1/events  201  84ms
-  ├─ api-gateway        2ms   auth.verify
-  ├─ events-ingest     12ms   schema.validate
-  ├─ queue-processor    4ms   enqueue events.high
-  └─ worker-us-east-1a 66ms   handler.run`}
-          </pre>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-3 px-6 lg:grid-cols-2">
+          <ChartCard title="Latency percentiles" description="Derived from event throughput">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={latency} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tt} />
+                  <Line dataKey="p95" stroke="var(--color-chart-1)" dot={false} strokeWidth={1.5} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          <ChartCard title="Throughput" description="Success vs failed">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={rps} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tt} />
+                  <Area dataKey="success" stroke="var(--color-success)" fill="var(--color-success)" fillOpacity={0.2} strokeWidth={1.5} />
+                  <Area dataKey="failed" stroke="var(--color-destructive)" fill="var(--color-destructive)" fillOpacity={0.2} strokeWidth={1.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+        </div>
+
+        <div className="px-6 py-4">
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="h-8 text-[10px] font-mono uppercase">Method</TableHead>
+                  <TableHead className="h-8 text-[10px] font-mono uppercase">Path</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] font-mono uppercase">RPS</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] font-mono uppercase">p95</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] font-mono uppercase">Errors</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {endpoints.map((e) => (
+                  <TableRow key={e.path} className="border-border text-xs">
+                    <TableCell className="py-1.5"><StatusBadge tone={METHOD_TONE[e.method]}>{e.method}</StatusBadge></TableCell>
+                    <TableCell className="py-1.5 font-mono text-[11px]">{e.path}</TableCell>
+                    <TableCell className="py-1.5 text-right font-mono tabular-nums">{e.rps}</TableCell>
+                    <TableCell className={cn("py-1.5 text-right font-mono tabular-nums", e.p95 > 200 && "text-warning")}>{e.p95}ms</TableCell>
+                    <TableCell className={cn("py-1.5 text-right font-mono tabular-nums", e.errorRate > 1 && "text-destructive")}>{e.errorRate}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </QueryBoundary>
     </div>
   );
 }
 
-const tick = { fill: "var(--color-muted-foreground)", fontSize: 10 };
-const ttStyle = { background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11 };
+const tt = { background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11 };

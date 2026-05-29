@@ -2,7 +2,26 @@
 
 > Engineering-grade observability for distributed event pipelines. Traces, logs, metrics, queues, workers, deployments, incidents and MLOps in one console.
 
-**Stack:** TanStack Start · React 19 · TypeScript (strict) · Tailwind 4 · shadcn/ui · Zustand · TanStack Query · TanStack Table · Recharts
+**Stack:** TanStack Start · React 19 · TypeScript (strict) · Tailwind 4 · shadcn/ui · Zustand · TanStack Query · TanStack Table · Recharts  
+**Backend:** Fastify 5 · Prisma · PostgreSQL · Redis · BullMQ — see [`backend/README.md`](backend/README.md)
+
+### Quick start (database + env only)
+
+See **[SETUP.md](SETUP.md)** for the full production setup. Summary:
+
+```bash
+docker compose up -d
+cp .env.example .env && cp backend/.env.example backend/.env
+cd backend && npm install && npm run db:push && npm run db:seed && npm run dev
+# new terminal, from repo root:
+npm install && npm run dev
+```
+
+- Frontend: `http://localhost:8080` (proxies `/api` → backend)
+- API: `http://localhost:3001/api/v1`
+- Demo login: `admin@pulse.io` / `Demo1234!`
+
+All UI data comes from PostgreSQL via the API (`VITE_USE_API=true`). No mock fallbacks.
 **Design language:** Grafana / Datadog / Sentry / Vercel · dark-first · high-density · zero flash
 
 ---

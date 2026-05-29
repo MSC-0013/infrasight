@@ -3,7 +3,8 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { generateIncidents, type Incident } from "@/lib/mock-data";
+import type { Incident } from "@/lib/mock-data";
+import { usePulseIncidents } from "@/lib/pulse-hooks";
 import { formatDistanceToNow } from "@/lib/format";
 import { Plus } from "lucide-react";
 
@@ -26,7 +27,7 @@ const statusTone: Record<Incident["status"], "warning" | "info" | "success" | "e
 };
 
 function IncidentsPage() {
-  const incidents = useMemo(() => generateIncidents(), []);
+  const { data: incidents = [], isLoading } = usePulseIncidents();
   const active = incidents.filter((i) => i.status !== "resolved").length;
 
   return (

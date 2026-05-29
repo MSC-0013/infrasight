@@ -19,7 +19,8 @@ import {
 import { Plus, Copy, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, ROLE_LABEL, ROLE_TONE } from "@/store/auth-store";
-import { generateMembers, type Member } from "@/lib/mock-data";
+import type { Member } from "@/lib/mock-data";
+import { usePulseMembers } from "@/lib/pulse-hooks";
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: () => {
@@ -454,7 +455,7 @@ function NotificationsSection() {
 }
 
 function RBACSection() {
-  const members = useMemo(() => generateMembers(), []);
+  const { data: members = [] } = usePulseMembers();
 
   const ROLE_TONE_MAP: Record<string, "info" | "success" | "warning" | "error" | "critical"> = {
     admin: "error",

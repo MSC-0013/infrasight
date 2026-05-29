@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { Outlet, createRootRoute, HeadContent, Scripts, Link, useRouterState } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/app-shell";
+import { initPulseApiClient } from "@/lib/api/init-client";
 import appCss from "../styles.css?url";
 
 const queryClient = new QueryClient();
@@ -64,6 +66,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
+
+  useEffect(() => {
+    initPulseApiClient();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

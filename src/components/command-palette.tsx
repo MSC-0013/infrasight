@@ -6,11 +6,18 @@ import {
 } from "@/components/ui/command";
 import { LayoutDashboard, Search, ChartBar as BarChart3, Layers, Cpu, Bell, Sparkles, Network, Building2, Settings, GitBranch, Activity, FileText, Workflow, OctagonAlert as AlertOctagon, ShieldCheck, Boxes, KeyRound, Users, Pause, Play, Flame, Grid3x2 as Grid3X3, Globe, Clock, X } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
+import type { SearchableEntity, SearchableEntityKind } from "@/lib/mock-data";
+import { buildSearchIndex } from "@/lib/search-index";
 import {
-  generateSearchIndex,
-  type SearchableEntity,
-  type SearchableEntityKind,
-} from "@/lib/mock-data";
+  usePulseTraces,
+  usePulseIncidents,
+  usePulseServices,
+  usePulseDeployments,
+  usePulseAlerts,
+  usePulseQueues,
+  usePulseWorkers,
+  usePulseEvents,
+} from "@/lib/pulse-hooks";
 import { cn } from "@/lib/utils";
 
 const ROUTES: Array<{ to: string; label: string; icon: typeof LayoutDashboard; group: string }> = [
@@ -50,6 +57,7 @@ const KIND_ICON: Record<SearchableEntityKind, typeof LayoutDashboard> = {
   api_key: KeyRound,
   member: Users,
   region: Globe,
+  event: Search,
 };
 
 const KIND_LABEL: Record<SearchableEntityKind, string> = {
@@ -65,6 +73,7 @@ const KIND_LABEL: Record<SearchableEntityKind, string> = {
   api_key: "API Keys",
   member: "Members",
   region: "Regions",
+  event: "Events",
 };
 
 const TONE_CLASS: Record<string, string> = {
@@ -106,7 +115,19 @@ export function CommandPalette() {
   const navigate = useNavigate();
   const { realtimeConnected, setRealtimeConnected } = useUIStore();
 
-  const searchIndex = useMemo(() => generateSearchIndex(), []);
+  const { data: traces = [] } = usePulseTraces();
+  const { data: incidents = [] } = usePulseIncidents();
+  const { data: services = [] } = usePulseServices();
+  const { data: deployments = [] } = usePulseDeployments(20);
+  const { data: alerts = [] } = usePulseAlerts();
+  const { data: queues = [] } = usePulseQueues();
+  const { data: workers = [] } = usePulseWorkers();
+  const { data: events = [] } = usePulseEvents(30);
+
+  const searchIndex = useMemo(
+    () => buildSearchIndex({ traces, incidents, services, deployments, alerts, queues, workers, events }),
+    [traces, incidents, services, deployments, alerts, queues, workers, events],
+  );
   const [recent, setRecent] = useState<SearchableEntity[]>(loadRecent);
 
   useEffect(() => {

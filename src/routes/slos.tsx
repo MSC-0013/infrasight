@@ -3,7 +3,8 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { generateSLOs, type SLO, type SLI } from "@/lib/mock-data";
+import type { SLO, SLI } from "@/lib/mock-data";
+import { usePulseSLOs } from "@/lib/pulse-hooks";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, TrendingUp, TrendingDown, TriangleAlert as AlertTriangle, Flame, ChevronRight } from "lucide-react";
 
@@ -25,7 +26,7 @@ const STATUS_TONE: Record<SLO["status"], "success" | "warning" | "error"> = {
 };
 
 function SLOsPage() {
-  const slos = useMemo(() => generateSLOs(), []);
+  const { data: slos = [] } = usePulseSLOs();
   const healthy = slos.filter((s) => s.status === "healthy").length;
   const atRisk = slos.filter((s) => s.status === "at_risk").length;
   const breached = slos.filter((s) => s.status === "breached").length;

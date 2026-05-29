@@ -1,0 +1,772 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  super_admin
+  admin
+  sre
+  developer
+  viewer
+}
+
+enum PlanType {
+  hobby
+  team
+  enterprise
+}
+
+enum EventStatus {
+  success
+  failed
+  retrying
+  queued
+  processing
+}
+
+enum SeverityLevel {
+  info
+  warning
+  error
+  critical
+}
+
+enum SpanStatus {
+  ok
+  error
+  unset
+}
+
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+  fatal
+}
+
+enum QueueType {
+  kafka
+  sqs
+  pubsub
+  redis_streams
+  rabbitmq
+  nats
+}
+
+enum HealthStatus {
+  healthy
+  warning
+  critical
+  paused
+  offline
+}
+
+enum WorkerStatus {
+  online
+  offline
+  draining
+  idle
+  error
+}
+
+enum IncidentSeverity {
+  P1
+  P2
+  P3
+  P4
+  P5
+}
+
+enum IncidentStatus {
+  open
+  investigating
+  identified
+  mitigated
+  resolved
+}
+
+enum AlertStatus {
+  ok
+  firing
+  silenced
+  acknowledged
+  resolved
+}
+
+enum NotificationChannel {
+  slack
+  pagerduty
+  email
+  webhook
+  teams
+}
+
+enum DeploymentStatus {
+  pending
+  running
+  success
+  failed
+  cancelled
+  rolled_back
+}
+
+enum DeployEnv {
+  development
+  staging
+  production
+  canary
+}
+
+enum SloStatus {
+  healthy
+  at_risk
+  breached
+}
+
+enum MlModelStatus {
+  active
+  archived
+  degraded
+  pending
+}
+
+enum ServiceTier {
+  critical
+  high
+  medium
+  low
+}
+
+enum AiTaskType {
+  rca
+  log_anomaly
+  deploy_summary
+  slo_prediction
+  trace_explain
+  drift_alert
+  chat
+}
+
+enum TopologyNodeType {
+  service
+  database
+  cache
+  queue
+  cdn
+  gateway
+  external
+}
+
+// ─── Core ────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String   @unique
+  plan             PlanType @default(hobby)
+  maxUsers         Int      @default(5) @map("max_users")
+  maxRetentionDays Int      @default(7) @map("max_retention_days")
+  maxApiKeys       Int      @default(3) @map("max_api_keys")
+  billingEmail     String?  @map("billing_email")
+  avatarUrl        String?  @map("avatar_url")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  users            User[]
+  events           Event[]
+  traces           Trace[]
+  spans            Span[]
+  logEntries       LogEntry[]
+  queues           Queue[]
+  workers          Worker[]
+  incidents        Incident[]
+  alertRules       AlertRule[]
+  deployments      Deployment[]
+  slos             Slo[]
+  mlModels         MlModel[]
+  services         Service[]
+  topologyNodes    TopologyNode[]
+  topologyEdges    TopologyEdge[]
+  auditEntries     AuditEntry[]
+  apiKeys          ApiKey[]
+  aiInsights       AiInsight[]
+  notifications    Notification[]
+  orgSettings      OrgSettings?
+
+  @@map("organizations")
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  email           String    @unique
+  name            String
+  passwordHash    String?   @map("password_hash")
+  role            UserRole  @default(viewer)
+  avatarUrl       String?   @map("avatar_url")
+  timezone        String    @default("UTC")
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  refreshTokens   RefreshToken[]
+  oauthAccounts   OAuthAccount[]
+  apiKeys         ApiKey[]
+  assignedIncidents Incident[] @relation("Assignee")
+
+  @@index([orgId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  userAgent  String?   @map("user_agent")
+  ipAddress  String?   @map("ip_address")
+  expiresAt  DateTime  @map("expires_at")
+  revoked    Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  createdBy   String    @map("created_by") @db.Uuid
+  name        String
+  keyHash     String    @unique @map("key_hash")
+  keyPrefix   String    @map("key_prefix")
+  permissions String[]  @default([])
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  revoked     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  creator     User         @relation(fields: [createdBy], references: [id])
+
+  @@index([orgId])
+  @@map("api_keys")
+}
+
+model OAuthAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  accessToken    String?  @map("access_token")
+  refreshToken   String?  @map("refresh_token")
+  rawProfile     Json?    @map("raw_profile")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@map("oauth_accounts")
+}
+
+// ─── Observability ───────────────────────────────────────────────────────────
+
+model Event {
+  id           String        @id @default(uuid()) @db.Uuid
+  orgId        String        @map("org_id") @db.Uuid
+  traceId      String?       @map("trace_id")
+  spanId       String?       @map("span_id")
+  eventType    String        @map("event_type")
+  status       EventStatus   @default(success)
+  severity     SeverityLevel @default(info)
+  organization String
+  queue        String
+  worker       String
+  region       String        @default("us-east-1")
+  latencyMs    Int           @default(0) @map("latency_ms")
+  retries      Int           @default(0)
+  payload      Json          @default("{}")
+  metadata     Json          @default("{}")
+  timestamp    DateTime      @default(now())
+  processedAt  DateTime?     @map("processed_at")
+
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, timestamp(sort: Desc)])
+  @@index([status, timestamp])
+  @@map("events")
+}
+
+model Trace {
+  id          String     @id @default(uuid()) @db.Uuid
+  traceId     String     @unique @map("trace_id")
+  orgId       String     @map("org_id") @db.Uuid
+  rootSpanId  String     @map("root_span_id")
+  rootService String     @map("root_service")
+  rootName    String     @map("root_name")
+  durationMs  Int        @map("duration_ms")
+  spanCount   Int        @default(1) @map("span_count")
+  errorCount  Int        @default(0) @map("error_count")
+  status      SpanStatus @default(ok)
+  startTime   DateTime   @map("start_time")
+  endTime     DateTime   @map("end_time")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  spans       Span[]
+
+  @@index([orgId, startTime(sort: Desc)])
+  @@map("traces")
+}
+
+model Span {
+  id            String     @id @default(uuid()) @db.Uuid
+  spanId        String     @map("span_id")
+  traceId       String     @map("trace_id")
+  parentSpanId  String?    @map("parent_span_id")
+  orgId         String     @map("org_id") @db.Uuid
+  name          String
+  service       String
+  kind          String     @default("INTERNAL")
+  startTime     DateTime   @map("start_time")
+  endTime       DateTime   @map("end_time")
+  durationMs    Int        @map("duration_ms")
+  status        SpanStatus @default(ok)
+  statusMessage String?    @map("status_message")
+  attributes    Json       @default("{}")
+  eventsLog     Json       @default("[]") @map("events_log")
+  resource      Json       @default("{}")
+
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  trace         Trace?       @relation(fields: [traceId], references: [traceId])
+
+  @@index([traceId])
+  @@index([orgId, service, startTime(sort: Desc)])
+  @@map("spans")
+}
+
+model LogEntry {
+  id        String    @id @default(uuid()) @db.Uuid
+  orgId     String    @map("org_id") @db.Uuid
+  traceId   String?   @map("trace_id")
+  spanId    String?   @map("span_id")
+  timestamp DateTime  @default(now())
+  level     LogLevel  @default(info)
+  service   String
+  host      String?
+  message   String
+  fields    Json      @default("{}")
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, timestamp(sort: Desc)])
+  @@index([service, level])
+  @@map("log_entries")
+}
+
+model SavedLogQuery {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  createdBy String   @map("created_by") @db.Uuid
+  name      String
+  query     String
+  filters   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("saved_log_queries")
+}
+
+// ─── Operations ──────────────────────────────────────────────────────────────
+
+model Queue {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  name           String
+  type           QueueType
+  status         HealthStatus @default(healthy)
+  lagMs          Int          @default(0) @map("lag_ms")
+  depth          Int          @default(0)
+  throughputRps  Float        @default(0) @map("throughput_rps")
+  dlqSize        Int          @default(0) @map("dlq_size")
+  consumerCount  Int          @default(0) @map("consumer_count")
+  config         Json         @default("{}")
+  paused         Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@map("queues")
+}
+
+model Worker {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  name           String
+  status         WorkerStatus @default(offline)
+  queueName      String       @map("queue_name")
+  region         String       @default("us-east-1")
+  jobsProcessed  BigInt       @default(0) @map("jobs_processed")
+  jobsFailed     BigInt       @default(0) @map("jobs_failed")
+  cpuPercent     Float        @default(0) @map("cpu_percent")
+  memMb          Float        @default(0) @map("mem_mb")
+  uptimeSeconds  BigInt       @default(0) @map("uptime_seconds")
+  lastHeartbeat  DateTime?    @map("last_heartbeat")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@map("workers")
+}
+
+model Incident {
+  id              String           @id @default(uuid()) @db.Uuid
+  orgId           String           @map("org_id") @db.Uuid
+  title           String
+  description     String?
+  severity        IncidentSeverity @default(P3)
+  status          IncidentStatus   @default(open)
+  service         String
+  tags            String[]         @default([])
+  alertIds        String[]         @default([]) @map("alert_ids")
+  reporterId      String?          @map("reporter_id") @db.Uuid
+  assigneeId      String?          @map("assignee_id") @db.Uuid
+  openedAt        DateTime         @default(now()) @map("opened_at")
+  acknowledgedAt  DateTime?        @map("acknowledged_at")
+  resolvedAt      DateTime?        @map("resolved_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  org             Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignee        User?            @relation("Assignee", fields: [assigneeId], references: [id])
+  timeline        IncidentTimeline[]
+  postMortem      PostMortem?
+
+  @@index([orgId, status])
+  @@map("incidents")
+}
+
+model IncidentTimeline {
+  id          String   @id @default(uuid()) @db.Uuid
+  incidentId  String   @map("incident_id") @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  actorName   String   @default("system") @map("actor_name")
+  eventType   String   @map("event_type")
+  content     String
+  metadata    Json     @default("{}")
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@map("incident_timeline")
+}
+
+model PostMortem {
+  id          String   @id @default(uuid()) @db.Uuid
+  incidentId  String   @unique @map("incident_id") @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
+  summary     String
+  timeline    String
+  rootCause   String   @map("root_cause")
+  actionItems Json     @default("[]") @map("action_items")
+  aiGenerated Boolean  @default(false) @map("ai_generated")
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@map("post_mortems")
+}
+
+model AlertRule {
+  id               String                @id @default(uuid()) @db.Uuid
+  orgId            String                @map("org_id") @db.Uuid
+  name             String
+  description      String?
+  severity         SeverityLevel         @default(warning)
+  condition        Json
+  service          String?
+  channels         NotificationChannel[] @default([])
+  channelConfig    Json                  @default("{}") @map("channel_config")
+  cooldownSeconds  Int                   @default(300) @map("cooldown_seconds")
+  enabled          Boolean               @default(true)
+  silenced         Boolean               @default(false)
+  silenceUntil     DateTime?             @map("silence_until")
+  status           AlertStatus           @default(ok)
+  currentValue     Float?                @map("current_value")
+  firedAt          DateTime?             @map("fired_at")
+  resolvedAt       DateTime?             @map("resolved_at")
+  acknowledgedBy   String?               @map("acknowledged_by") @db.Uuid
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  org              Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  history          AlertHistory[]
+
+  @@index([orgId, status])
+  @@map("alert_rules")
+}
+
+model AlertHistory {
+  id             String      @id @default(uuid()) @db.Uuid
+  alertRuleId    String      @map("alert_rule_id") @db.Uuid
+  orgId          String      @map("org_id") @db.Uuid
+  previousStatus AlertStatus @map("previous_status")
+  newStatus      AlertStatus @map("new_status")
+  value          Float?
+  threshold      Float?
+  message        String?
+  occurredAt     DateTime    @default(now()) @map("occurred_at")
+
+  alertRule      AlertRule   @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+
+  @@map("alert_history")
+}
+
+model Deployment {
+  id              String           @id @default(uuid()) @db.Uuid
+  orgId           String           @map("org_id") @db.Uuid
+  service         String
+  version         String
+  environment     DeployEnv        @default(production)
+  status          DeploymentStatus @default(pending)
+  sha             String
+  branch          String
+  triggeredBy     String           @map("triggered_by")
+  startedAt       DateTime         @default(now()) @map("started_at")
+  completedAt     DateTime?        @map("completed_at")
+  canaryPercent   Int              @default(100) @map("canary_percent")
+  isRollback      Boolean          @default(false) @map("is_rollback")
+  latencyDeltaMs  Float?           @map("latency_delta_ms")
+  errorRateDelta  Float?           @map("error_rate_delta")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  org             Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, service, startedAt(sort: Desc)])
+  @@map("deployments")
+}
+
+model Slo {
+  id           String    @id @default(uuid()) @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  name         String
+  service      String
+  metric       String
+  target       Float
+  window       String    @default("30d")
+  current      Float     @default(100)
+  errorBudget  Float     @default(100) @map("error_budget")
+  burnRate     Float     @default(0) @map("burn_rate")
+  status       SloStatus @default(healthy)
+  breachCount  Int       @default(0) @map("breach_count")
+  lastBreachAt DateTime? @map("last_breach_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, service])
+  @@map("slos")
+}
+
+// ─── Analytics & MLOps ───────────────────────────────────────────────────────
+
+model AnalyticsSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  orgId          String   @map("org_id") @db.Uuid
+  service        String?
+  eventsTotal    BigInt   @default(0) @map("events_total")
+  throughputRps  Float    @default(0) @map("throughput_rps")
+  latencyP50     Float?   @map("latency_p50")
+  latencyP95     Float?   @map("latency_p95")
+  latencyP99     Float?   @map("latency_p99")
+  errorRate      Float    @default(0) @map("error_rate")
+  bucket         DateTime
+
+  @@index([orgId, bucket(sort: Desc)])
+  @@map("analytics_snapshots")
+}
+
+model MlModel {
+  id              String        @id @default(uuid()) @db.Uuid
+  orgId           String        @map("org_id") @db.Uuid
+  name            String
+  version         String
+  framework       String
+  status          MlModelStatus @default(active)
+  baselineMetrics Json          @default("{}") @map("baseline_metrics")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  org             Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  driftMetrics    DriftMetric[]
+
+  @@unique([orgId, name, version])
+  @@map("ml_models")
+}
+
+model DriftMetric {
+  id          String   @id @default(uuid()) @db.Uuid
+  modelId     String   @map("model_id") @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  feature     String
+  psiScore    Float    @map("psi_score")
+  baselineMean Float?  @map("baseline_mean")
+  currentMean Float?   @map("current_mean")
+  isAlert     Boolean  @default(false) @map("is_alert")
+  measuredAt  DateTime @default(now()) @map("measured_at")
+
+  model       MlModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId, measuredAt(sort: Desc)])
+  @@map("drift_metrics")
+}
+
+// ─── Services & Topology ─────────────────────────────────────────────────────
+
+model Service {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  name           String
+  language       String?
+  team           String?
+  tier           ServiceTier  @default(medium)
+  status         HealthStatus @default(healthy)
+  rps            Float        @default(0)
+  p95Ms          Float        @default(0) @map("p95_ms")
+  errorRate      Float        @default(0) @map("error_rate")
+  uptimePct      Float        @default(100) @map("uptime_pct")
+  currentVersion String?      @map("current_version")
+  dependencies   String[]     @default([])
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@map("services")
+}
+
+model TopologyNode {
+  id        String           @id @default(uuid()) @db.Uuid
+  orgId     String           @map("org_id") @db.Uuid
+  nodeId    String           @map("node_id")
+  label     String
+  service   String
+  nodeType  TopologyNodeType @default(service) @map("node_type")
+  rps       Float            @default(0)
+  status    HealthStatus     @default(healthy)
+  posX      Float?           @map("pos_x")
+  posY      Float?           @map("pos_y")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  org       Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, nodeId])
+  @@map("topology_nodes")
+}
+
+model TopologyEdge {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  fromNode  String   @map("from_node")
+  toNode    String   @map("to_node")
+  rps       Float    @default(0)
+  errorRate Float    @default(0) @map("error_rate")
+  p95Ms     Float    @default(0) @map("p95_ms")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, fromNode, toNode])
+  @@map("topology_edges")
+}
+
+// ─── Audit, Settings, AI, Notifications ──────────────────────────────────────
+
+model AuditEntry {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  action     String
+  actorId    String   @map("actor_id")
+  actorRole  String   @map("actor_role")
+  resource   String
+  resourceId String   @map("resource_id")
+  before     Json?
+  after      Json?
+  ip         String   @default("")
+  userAgent  String   @default("") @map("user_agent")
+  timestamp  DateTime @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, timestamp(sort: Desc)])
+  @@map("audit_entries")
+}
+
+model OrgSettings {
+  id                    String   @id @default(uuid()) @db.Uuid
+  orgId                 String   @unique @map("org_id") @db.Uuid
+  notificationPrefs     Json     @default("{}") @map("notification_prefs")
+  ssoConfig             Json     @default("{}") @map("sso_config")
+  retentionDays         Int      @default(7) @map("retention_days")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  org                   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("org_settings")
+}
+
+model AiInsight {
+  id          String     @id @default(uuid()) @db.Uuid
+  orgId       String     @map("org_id") @db.Uuid
+  type        AiTaskType
+  title       String
+  description String
+  severity    String     @default("info")
+  service     String?
+  rawResponse Json       @default("{}") @map("raw_response")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@map("ai_insights")
+}
+
+model Notification {
+  id        String        @id @default(uuid()) @db.Uuid
+  orgId     String        @map("org_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  title     String
+  body      String
+  kind      String        @default("info")
+  severity  SeverityLevel @default(info)
+  read      Boolean       @default(false)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  org       Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
